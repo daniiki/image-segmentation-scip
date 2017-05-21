@@ -1,0 +1,6 @@
+max 6x+3y+4z
+s.t.    5x-y=10
+        y+z<=10
+        x,y,z>=0
+
+optimal solution: x=4, y=10, z=0
