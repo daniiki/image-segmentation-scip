@@ -21,7 +21,6 @@ Graph create_random_graph()
                           false, // no parallel edges
                           false // no self-edges
                          );
-    std::cout << num_vertices(g) << std::endl;
     
     // associate random color with superpixels
     for (auto p = vertices(g); p.first != p.second; ++p.first)
@@ -31,7 +30,7 @@ Graph create_random_graph()
     return g;
 }
 
-double gamma(std::set<Graph::vertex_descriptor> partition)
+double gamma(Graph g, std::set<Graph::vertex_descriptor> partition)
 {
     double sum = 0;
     for (auto superpixel : partition)
@@ -48,7 +47,7 @@ double gamma(std::set<Graph::vertex_descriptor> partition)
     return gamma;
 }
 
-void master_problem(Graph g, int k, std::vector<std::set<Graph::vertex_descriptor>> partitions)
+int master_problem(Graph g, int k, std::vector<std::set<Graph::vertex_descriptor>> partitions)
 {
     SCIP* scip;
     SCIP_CALL(SCIPcreate(& scip));
@@ -63,9 +62,9 @@ void master_problem(Graph g, int k, std::vector<std::set<Graph::vertex_descripto
     for (auto partition : partitions)
     {
         SCIP_VAR* var;
-        SCIP_CALL(SCIPcreateVar(scip, & var, "x_P", 0.0, 1.0, gamma(partition), SCIP_VARTYPE_CONTINUOUS, TRUE, FALSE, NULL, NULL, NULL, NULL, NULL));
+        SCIP_CALL(SCIPcreateVar(scip, & var, "x_P", 0.0, 1.0, gamma(g, partition), SCIP_VARTYPE_CONTINUOUS, TRUE, FALSE, NULL, NULL, NULL, NULL, NULL));
         SCIP_CALL(SCIPaddVar(scip, var));
-        vars.append(var);
+        vars.push_back(var);
     }
     
     for (auto p = vertices(g); p.first != p.second; ++p.first)
@@ -89,23 +88,32 @@ void master_problem(Graph g, int k, std::vector<std::set<Graph::vertex_descripto
         SCIP_CALL(SCIPaddCoefLinear(scip, cons2, vars[i], 1.0));
     }
     SCIP_CALL(SCIPaddCons(scip, cons2));
+    
+    SCIP_CALL(SCIPsolve(scip));
+    SCIP_SOL* sol = SCIPgetBestSol(scip);
+    
+    return 0;
 }
+
 
 template <typename T>
 auto subsets(std::set<T> set)
 {
     if (set.size() == 1)
     {
-        return std::vector<std::set<T>> { std::set<T> {}, *set.begin() };
+        std::set<T> emptyset = {};
+        std::set<T> singleton = { *set.begin() };
+        return std::vector<std::set<T>> { emptyset, singleton };
     }
     else
     {
-        auto elem = *set.begin()
-        auto sets1 = subsets(set.erase(set.begin()));
+        auto elem = *set.begin();
+        set.erase(set.begin());
+        auto sets1 = subsets(set);
         auto sets2 = sets1;
-        for (auto set : sets2)
+        for(auto it = sets2.begin(); it != sets2.end(); ++it)
         {
-            set.insert(elem);
+            it->insert(elem);
         }
         sets1.insert(sets1.end(), sets2.begin(), sets2.end());
         return sets1;
@@ -120,6 +128,7 @@ int main()
     {
         superpixels.insert(*p.first);
     }
+    
     master_problem(g, 2, subsets(superpixels));
     return 0;
 }
