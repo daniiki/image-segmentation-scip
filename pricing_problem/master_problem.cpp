@@ -13,19 +13,13 @@ struct Superpixel
 };
 typedef boost::adjacency_list<boost::vecS, boost::vecS, boost::undirectedS, Superpixel> Graph;
 
-Graph create_random_graph()
+Graph create_graph()
 {
-    boost::minstd_rand gen; // random number generator
-    Graph g;
-    generate_random_graph(g, 6, 10, gen,
-                          false, // no parallel edges
-                          false // no self-edges
-                         );
-    
-    // associate random color with superpixels
+    Graph g(8);
+    std::vector<unsigned int> colors = {1,2,3,100,101,102,200,202};
     for (auto p = vertices(g); p.first != p.second; ++p.first)
     {
-        g[*p.first].color = gen() % 256;
+        g[*p.first].color = colors[*p.first];
     }
     return g;
 }
@@ -97,7 +91,7 @@ int master_problem(Graph g, int k, std::vector<std::set<Graph::vertex_descriptor
 
 
 template <typename T>
-auto subsets(std::set<T> set)
+std::vector<std::set<T>> subsets(std::set<T> set)
 {
     if (set.size() == 1)
     {
@@ -122,13 +116,13 @@ auto subsets(std::set<T> set)
 
 int main()
 {
-    auto g = create_random_graph();
+    auto g = create_graph();
     std::set<Graph::vertex_descriptor> superpixels;
     for (auto p = vertices(g); p.first != p.second; ++p.first)
     {
         superpixels.insert(*p.first);
     }
     
-    master_problem(g, 2, subsets(superpixels));
+    master_problem(g, 3, subsets(superpixels));
     return 0;
 }
