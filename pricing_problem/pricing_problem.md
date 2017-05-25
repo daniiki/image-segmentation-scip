@@ -7,11 +7,14 @@ given:
 
 - $\superpixels$: set of superpixels
 - $\mathcal{P}$: set of partitions
-- $\gamma_s, \forall s\in\superpixels$: color of superpixel 
+- $y_s, \forall s\in\superpixels$: color of superpixel 
 - $k$: number of partitions to select
-- $\gamma_P=\sum_{s\in P}|c_P-\gamma_s|$:
+- $\gamma_P=\sum_{s\in P}|c_P-y_s|$:
   error that we make when selecting $P$,
-  where $c_P$ is the average color of $P$
+  where $c_P$ is the average color of $P$,
+  \begin{equation}
+    c_P=\frac{1}{|P|}\sum_{s\in P}y_s
+  \end{equation}
 
 variables:
 
@@ -27,8 +30,8 @@ master problem:
 
 dual variables:
 
-- $\mu_s, s\in\superpixels$: corresponding to (2)
-- $\lambda$: corresponding to (3)
+- $\mu_s, \forall s\in\superpixels$: corresponding to (3)
+- $\lambda$: corresponding to (4)
 
 dual problem:
 \begin{align}
@@ -40,12 +43,16 @@ dual problem:
 
 pricing problem:
 \begin{align}
-    & \min & -\sum_{s\in\superpixels} x_s\cdot\mu_s + \sum_{s\in\superpixels} x_s\cdot|c_P-\gamma_s| \\
+    & \min & -\sum_{s\in\superpixels} x_s\cdot\mu_s + \sum_{s\in\superpixels} x_s\cdot|c_P-y_s| \\
     & \text{s.t.} & \text{connectivity constraints}
 \end{align}
+with
+\begin{equation}
+    c_P = \frac{\sum_{s\in\superpixels}x_s\cdot y_s}{\sum_{s\in\superpixels}x_s}
+\end{equation}
 becomes:
 \begin{align}
-    & \min & -\sum_{s\in\superpixels} x_s\cdot\mu_s + \sum_{s\in\superpixels} x_s\cdot|c_P-\gamma_s| \\
+    & \min & -\sum_{s\in\superpixels} x_s\cdot y_s + \sum_{s\in\superpixels} x_s\cdot|c_P-y_s| \\
     & \text{s.t.} & \text{connectivity constraints} \\
     && ????
 \end{align}
