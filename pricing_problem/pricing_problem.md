@@ -1,6 +1,10 @@
 ---
 header-includes:
     - \newcommand{\superpixels}{\mathcal{S}}
+    - \DeclareMathOperator*{\argmin}{argmin}
+    - \DeclareMathOperator*{\Out}{Out}
+    - \DeclareMathOperator*{\In}{In}
+    
 ---
 
 given:
@@ -10,10 +14,10 @@ given:
 - $y_s, \forall s\in\superpixels$: color of superpixel 
 - $k$: number of partitions to select
 - $\gamma_P=\sum_{s\in P}|c_P-y_s|$:
-  error that we make when selecting $P$,
-  where $c_P$ is the average color of $P$,
+  fitting error that we make when selecting $P$,
+  where $c_P$ is the fitting value,
   \begin{equation}
-    c_P=\frac{1}{|P|}\sum_{s\in P}y_s
+    c_P=\argmin_c\sum_{s\in P}|c-y_s|
   \end{equation}
 
 variables:
@@ -44,15 +48,33 @@ dual problem:
 pricing problem:
 \begin{align}
     & \min & -\sum_{s\in\superpixels} x_s\cdot\mu_s + \sum_{s\in\superpixels} x_s\cdot|c_P-y_s| \\
-    & \text{s.t.} & \text{connectivity constraints}
+    & \text{s.t.} & \text{connectivity constraints} \\
+    && x_s & \in\{0,1\} \\
+    && c_P & \text{ free}
 \end{align}
-with
-\begin{equation}
-    c_P = \frac{\sum_{s\in\superpixels}x_s\cdot y_s}{\sum_{s\in\superpixels}x_s}
-\end{equation}
 becomes:
 \begin{align}
-    & \min & -\sum_{s\in\superpixels} x_s\cdot y_s + \sum_{s\in\superpixels} x_s\cdot|c_P-y_s| \\
-    & \text{s.t.} & \text{connectivity constraints} \\
-    && ????
+    & \min & -\sum_{s\in\superpixels} x_s\cdot\mu_s + \sum_{s\in\superpixels} \delta_s \\
+    & \text{s.t.} & \delta_s & \geq c_P-y_s-M(1-x_s) &\forall s \in \superpixels \\
+    && \delta_s & \geq y_s-c_P-M(1-x_s) &\forall s \in \superpixels \\
+    && \text{connectivity constraints} \\
+    && x_s & \in\{0,1\} \\
+    && c_P & \text{ free} \\
+    && \delta_s &\geq0
+\end{align}
+where $M$ can be chosen as 
+\begin{equation}
+    M = \max_{s \in \superpixels} y_s
+\end{equation}
+
+connectivity constraints: 
+\begin{align}
+    \sum_{vw \in \Out(v)}e_{vw}^T - \sum_{wv \in \In(v)}e_{wv}^T &=
+    \begin{cases}
+        \sum_{w \in \superpixels}x_w^T-1 & \text{if }v=T \\
+        -x_v^T & \text{otherwise}
+    \end{cases}
+    & \forall v \in \superpixels \\
+    e_{vw}^T + e_{wv}^T &\leq (n-k-1)x_v^T &\forall (v,w) \in A \\
+    e_{vw}^T + e_{wv}^T &\leq (n-k-1)x_w^T &\forall (v,w) \in A
 \end{align}
