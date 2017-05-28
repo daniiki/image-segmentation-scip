@@ -1,23 +1,22 @@
 ---
 header-includes:
     - \newcommand{\superpixels}{\mathcal{S}}
-    - \DeclareMathOperator*{\argmin}{argmin}
+    - \DeclareMathOperator*{\argmin}{arg\,min}
     - \DeclareMathOperator*{\Out}{Out}
     - \DeclareMathOperator*{\In}{In}
-    
 ---
 
 given:
 
 - $\superpixels$: set of superpixels
 - $\mathcal{P}$: set of partitions
-- $y_s, \forall s\in\superpixels$: color of superpixel 
+- $y_s\geq0, \forall s\in\superpixels$: color of superpixel 
 - $k$: number of partitions to select
 - $\gamma_P=\sum_{s\in P}|c_P-y_s|$:
   fitting error that we make when selecting $P$,
   where $c_P$ is the fitting value,
   \begin{equation}
-    c_P=\argmin_c\sum_{s\in P}|c-y_s|
+    c_P=\argmin_{c\geq0}\sum_{s\in P}|c-y_s|
   \end{equation}
 
 variables:
