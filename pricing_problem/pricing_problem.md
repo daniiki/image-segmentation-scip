@@ -54,14 +54,16 @@ pricing problem:
 becomes:
 \begin{align}
     & \min & -\sum_{s\in\superpixels} x_s\cdot\mu_s + \sum_{s\in\superpixels} \delta_s \\
-    & \text{s.t.} & \delta_s & \geq c_P-y_s-M(1-x_s) &\forall s \in \superpixels \\
-    && \delta_s & \geq y_s-c_P-M(1-x_s) &\forall s \in \superpixels \\
+    & \text{s.t.} & c_P-y_s-M(1-x_s) &\leq \delta_s &\forall s \in \superpixels \\
+    && y_s-c_P-M(1-x_s) &\leq \delta_s &\forall s \in \superpixels \\
+    && \delta_s &\leq M\cdot x_s \\
     && \text{connectivity constraints} \\
     && x_s & \in\{0,1\} \\
     && c_P & \text{ free} \\
     && \delta_s &\geq0
 \end{align}
-where $M$ can be chosen as 
+where (17) is optional
+and $M$ can be chosen as 
 \begin{equation}
     M = \max_{s \in \superpixels} y_s
 \end{equation}
