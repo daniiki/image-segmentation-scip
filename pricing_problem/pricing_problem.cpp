@@ -75,19 +75,19 @@ int pricing_problem(Graph g, int k, std::vector<double> mu, std::vector<Graph::v
     SCIP_CALL(SCIPaddVar(scip, c_P));
     
     // float variables for connectivity constraints
-    std::vector<SCIP_VAR*> e1; // e_source,target
-    std::vector<SCIP_VAR*> e2; // e_target,source
+    std::map<Graph::edge_descriptor, SCIP_VAR*> e1; // e_source,target
+    std::map<Graph::edge_descriptor, SCIP_VAR*> e2; // e_target,source
     for (auto p = edges(g); p.first != p.second; ++p.first)
     {
         SCIP_VAR* e_vw;
         SCIP_CALL(SCIPcreateVar(scip, & e_vw, "e_vw", 0.0, SCIPinfinity(scip), 0.0, SCIP_VARTYPE_CONTINUOUS, TRUE, FALSE, NULL, NULL, NULL, NULL, NULL));
         SCIP_CALL(SCIPaddVar(scip, e_vw));
-        e1.push_back(e_vw);
+        e1[*p.first] = e_vw;
         
         SCIP_VAR* e_wv;
         SCIP_CALL(SCIPcreateVar(scip, & e_wv, "e_wv", 0.0, SCIPinfinity(scip), 0.0, SCIP_VARTYPE_CONTINUOUS, TRUE, FALSE, NULL, NULL, NULL, NULL, NULL));
         SCIP_CALL(SCIPaddVar(scip, e_wv));
-        e2.push_back(e_wv);
+        e2[*p.first] = e_wv;
     }
 
     //constraints
@@ -153,13 +153,13 @@ int pricing_problem(Graph g, int k, std::vector<double> mu, std::vector<Graph::v
         SCIP_CALL(SCIPcreateConsLinear(scip, & cons2, "second", 0, NULL, NULL, -SCIPinfinity(scip), 0.0, TRUE, TRUE, TRUE, TRUE, TRUE, FALSE, FALSE, FALSE, FALSE, FALSE));
         SCIP_CALL(SCIPaddCoefLinear(scip, cons2, e1[*p.first], 1.0));
         SCIP_CALL(SCIPaddCoefLinear(scip, cons2, e2[*p.first], 1.0));
-        SCIP_CALL(SCIPaddCoefLinear(scip, cons2, x[*source], k - n));
+        SCIP_CALL(SCIPaddCoefLinear(scip, cons2, x[source], k - n));
         
         SCIP_CONS* cons3;
         SCIP_CALL(SCIPcreateConsLinear(scip, & cons3, "third", 0, NULL, NULL, -SCIPinfinity(scip), 0.0, TRUE, TRUE, TRUE, TRUE, TRUE, FALSE, FALSE, FALSE, FALSE, FALSE));
         SCIP_CALL(SCIPaddCoefLinear(scip, cons3, e1[*p.first], 1.0));
         SCIP_CALL(SCIPaddCoefLinear(scip, cons3, e2[*p.first], 1.0));
-        SCIP_CALL(SCIPaddCoefLinear(scip, cons3, x[*target], k - n));
+        SCIP_CALL(SCIPaddCoefLinear(scip, cons3, x[target], k - n));
     }
     
     //TODO add constraints for each t in T
