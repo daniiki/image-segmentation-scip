@@ -56,7 +56,7 @@ becomes:
     & \min & -\sum_{s\in\superpixels} x_s\cdot\mu_s + \sum_{s\in\superpixels} \delta_s \\
     & \text{s.t.} & c_P-y_s-M(1-x_s) &\leq \delta_s &\forall s \in \superpixels \\
     && y_s-c_P-M(1-x_s) &\leq \delta_s &\forall s \in \superpixels \\
-    && \delta_s &\leq M\cdot x_s \\
+    && \delta_s &\leq M\cdot x_s &\forall s \in \superpixels \\
     && \text{connectivity constraints} \\
     && x_s & \in\{0,1\} \\
     && c_P & \text{ free} \\
@@ -76,6 +76,6 @@ connectivity constraints:
         -x_v^T & \text{otherwise}
     \end{cases}
     & \forall v \in \superpixels \\
-    e_{vw}^T + e_{wv}^T &\leq (n-k-1)x_v^T &\forall (v,w) \in A \\
-    e_{vw}^T + e_{wv}^T &\leq (n-k-1)x_w^T &\forall (v,w) \in A
+    e_{vw}^T + e_{wv}^T &\leq (n-k)x_v^T &\forall (v,w) \in A \\
+    e_{vw}^T + e_{wv}^T &\leq (n-k)x_w^T &\forall (v,w) \in A
 \end{align}
