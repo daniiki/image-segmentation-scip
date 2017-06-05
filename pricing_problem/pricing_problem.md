@@ -44,6 +44,13 @@ dual problem:
     && \lambda & \text{ free}
 \end{align}
 
+(7) is violated $\Leftrightarrow$ $-\sum_{s\in P} \mu_s + \gamma_P < \lambda$.
+If it is not, the solution to the master problem is optimal. 
+Therefore, in the following pricing problem, we only add the partition $\{s\in\superpixels : x_s=1\}$ if
+\begin{equation}
+    -\sum_{s\in\superpixels} x_s\cdot\mu_s + \sum_{s\in\superpixels} x_s\cdot|c_P-y_s| < \lambda.
+\end{equation}
+
 pricing problem:
 \begin{align}
     & \min & -\sum_{s\in\superpixels} x_s\cdot\mu_s + \sum_{s\in\superpixels} x_s\cdot|c_P-y_s| \\

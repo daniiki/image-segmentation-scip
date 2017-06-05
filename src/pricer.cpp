@@ -90,36 +90,7 @@ public:
         }
         
         // connectivity constraints
-        for (auto p = vertices(g); p.first != p.second; ++p.first)
-        {
-            if (std::find(T.begin(), T.end(), *p.first) != T.end())
-            {
-                SCIP_CONS* cons1;
-                SCIP_CALL(SCIPcreateConsLinear(scip_pricer, & cons1, "first", 0, NULL, NULL, 0.0, 0.0, TRUE, TRUE, TRUE, TRUE, TRUE, FALSE, FALSE, FALSE, FALSE, FALSE));
-                
-                for (auto q = out_edges(*p.first, g); q.first != q.second; ++q.first)
-                {
-                    auto source = boost::source(*q.first, g);
-                    auto target = boost::target(*q.first, g);
-                    if (source == *p.first)
-                    {
-                        SCIP_CALL(SCIPaddCoefLinear(scip_pricer, cons1, e1[*q.first], 1.0));
-                        SCIP_CALL(SCIPaddCoefLinear(scip_pricer, cons1, e2[*q.first], -1.0));
-                    }
-                    else if (target == *p.first)
-                    {
-                        SCIP_CALL(SCIPaddCoefLinear(scip_pricer, cons1, e2[*q.first], 1.0));
-                        SCIP_CALL(SCIPaddCoefLinear(scip_pricer, cons1, e1[*q.first], -1.0));
-                    }
-                    else
-                        std::cerr << "häääää?" << std::endl;
-                }
-                
-                SCIP_CALL(SCIPaddCoefLinear(scip_pricer, cons1, x[*p.first], 1.0));
-            }
-        }
-        
-        for ( auto p = edges(g); p.first != p.second; ++p.first)
+        for (auto p = edges(g); p.first != p.second; ++p.first)
         {
             auto source = boost::source(*p.first, g);
             auto target = boost::target(*p.first, g);
@@ -129,15 +100,88 @@ public:
             SCIP_CALL(SCIPaddCoefLinear(scip_pricer, cons2, e1[*p.first], 1.0));
             SCIP_CALL(SCIPaddCoefLinear(scip_pricer, cons2, e2[*p.first], 1.0));
             SCIP_CALL(SCIPaddCoefLinear(scip_pricer, cons2, x[source], k - n));
+            SCIP_CALL(SCIPaddCons(scip_pricer, cons2));
             
             SCIP_CONS* cons3;
             SCIP_CALL(SCIPcreateConsLinear(scip_pricer, & cons3, "third", 0, NULL, NULL, -SCIPinfinity(scip_pricer), 0.0, TRUE, TRUE, TRUE, TRUE, TRUE, FALSE, FALSE, FALSE, FALSE, FALSE));
             SCIP_CALL(SCIPaddCoefLinear(scip_pricer, cons3, e1[*p.first], 1.0));
             SCIP_CALL(SCIPaddCoefLinear(scip_pricer, cons3, e2[*p.first], 1.0));
             SCIP_CALL(SCIPaddCoefLinear(scip_pricer, cons3, x[target], k - n));
+            SCIP_CALL(SCIPaddCons(scip_pricer, cons3));
         }
         
-        //TODO add constraints for each t in T
+        // constraints for each t in T
+        std::vector<SCIP_CONS*> cons1;
+        for (auto t : T)
+        {
+            for (auto c : cons1)
+            {
+                SCIP_CALL(SCIPdelCons(scip_pricer, c));
+                SCIP_CALL(SCIPreleaseCons(scip_pricer, c);
+            }
+            cons1.clear();
+            
+            for (auto p = vertices(g); p.first != p.second; ++p.first)
+            {
+                SCIP_CONS* cons1_s;
+                if (*p.first == t)
+                {
+                    SCIP_CALL(SCIPcreateConsLinear(scip_pricer, & cons1_s, "first", 0, NULL, NULL, -1.0, -1.0, TRUE, TRUE, TRUE, TRUE, TRUE, FALSE, FALSE, FALSE, FALSE, FALSE));
+                }
+                else
+                {
+                    SCIP_CALL(SCIPcreateConsLinear(scip_pricer, & cons1_s, "first", 0, NULL, NULL, 0.0, 0.0, TRUE, TRUE, TRUE, TRUE, TRUE, FALSE, FALSE, FALSE, FALSE, FALSE));
+                }
+                
+                for (auto q = out_edges(*p.first, g); q.first != q.second; ++q.first)
+                {
+                    auto source = boost::source(*q.first, g);
+                    auto target = boost::target(*q.first, g);
+                    if (source == *p.first)
+                    {
+                        SCIP_CALL(SCIPaddCoefLinear(scip_pricer, cons1_s, e1[*q.first], 1.0));
+                        SCIP_CALL(SCIPaddCoefLinear(scip_pricer, cons1_s, e2[*q.first], -1.0));
+                    }
+                    else if (target == *p.first)
+                    {
+                        SCIP_CALL(SCIPaddCoefLinear(scip_pricer, cons1_s, e2[*q.first], 1.0));
+                        SCIP_CALL(SCIPaddCoefLinear(scip_pricer, cons1_s, e1[*q.first], -1.0));
+                    }
+                    else
+                    {
+                        std::cerr << "häääää?" << std::endl;
+                        exit(1);
+                    }
+                }
+                
+                if (*p.first == t)
+                {
+                    for (auto q = vertices(g); q.first != q.second; ++q.first)
+                    {
+                        SCIP_CALL(SCIPaddCoefLinear(scip_pricer, cons1_s, x[*q.first], -1.0));
+                    }
+                }
+                else
+                {
+                    SCIP_CALL(SCIPaddCoefLinear(scip_pricer, cons1_s, x[*p.first], 1.0));
+                }
+                SCIP_CALL(SCIPaddCons(scip_pricer, cons1_s));
+                cons1.push_back(cons1_s);
+            }
+            SCIP_CALL(SCIPsolve(scip_pricer));
+            SCIP_SOL* sol = SCIPgetBestSol(scip_pricer);
+            SCIP_Real lambda = SCIPgetDualsolLinear(scip, _num_partitions_cons);
+            if (SCIPgetSolOrigObj(scip_pricer, sol) < lambda)
+            {
+                SCIP_VAR* x_P;
+                SCIP_CALL(SCIPcreateVar(scip, & x_P, "x_P", 0.0, 1.0, gamma_P, SCIP_VARTYPE_CONTINUOUS, TRUE, FALSE, NULL, NULL, NULL, NULL, NULL));
+                SCIP_CALL(SCIPaddVar(scip, x_P));
+                //to do: iwas mit delta
+                
+            }    
+		
+
+        }
     }
     
 private: 
