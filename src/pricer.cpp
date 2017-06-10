@@ -1,4 +1,5 @@
 #include <objscip/objscip.h>
+#include <objscip/objscipdefplugins.h>
 #include <scip/cons_linear.h>
 #include <boost/graph/adjacency_list.hpp>
 #include <algorithm>
@@ -28,7 +29,7 @@ ObjPricerLinFit::ObjPricerLinFit(SCIP* scip, Graph* g_, int k, std::vector<Graph
 SCIP_RETCODE ObjPricerLinFit::initialSetup()
 {
     SCIP_CALL(SCIPcreate(& scip_pricer));
-    //SCIP_CALL(SCIPincludeDefaultPlugins(scip_pricer));
+    SCIP_CALL(SCIPincludeDefaultPlugins(scip_pricer));
     
     // create pricing problem
     SCIP_CALL(SCIPcreateProb(scip_pricer, "pricing_problem", NULL, NULL, NULL, NULL, NULL, NULL, NULL));
@@ -37,6 +38,8 @@ SCIP_RETCODE ObjPricerLinFit::initialSetup()
     SCIP_CALL(setupVars());
     SCIP_CALL(setupCons());
     SCIP_CALL(setupConnectivityCons());
+    
+    return SCIP_OKAY;
 }
 
 SCIP_RETCODE ObjPricerLinFit::setupVars()
@@ -71,6 +74,8 @@ SCIP_RETCODE ObjPricerLinFit::setupVars()
         SCIP_CALL(SCIPaddVar(scip_pricer, e_wv));
         e2[*p.first] = e_wv;
     }
+    
+    return SCIP_OKAY;
 }
 
 SCIP_RETCODE ObjPricerLinFit::setupCons()
@@ -97,6 +102,8 @@ SCIP_RETCODE ObjPricerLinFit::setupCons()
         SCIP_CALL(SCIPaddCoefLinear(scip_pricer, cons3, delta[*p.first], 1.0));
         SCIP_CALL(SCIPaddCons(scip_pricer, cons3));
     }
+    
+    return SCIP_OKAY;
 }
 
 SCIP_RETCODE ObjPricerLinFit::setupConnectivityCons()
@@ -154,6 +161,8 @@ SCIP_RETCODE ObjPricerLinFit::setupConnectivityCons()
         SCIP_CALL(SCIPaddCoefLinear(scip_pricer, cons3, x[target], _k - _n));
         SCIP_CALL(SCIPaddCons(scip_pricer, cons3));
     }
+    
+    return SCIP_OKAY;
 }
 
 SCIP_DECL_PRICERREDCOST(ObjPricerLinFit::scip_redcost)
@@ -175,6 +184,8 @@ SCIP_DECL_PRICERREDCOST(ObjPricerLinFit::scip_redcost)
             SCIP_CALL(addPartitionVar(scip, sol));
         }
     }
+    
+    return SCIP_OKAY;
 }
 
 SCIP_RETCODE ObjPricerLinFit::addRemainingConnectivityCons(Graph::vertex_descriptor t)
@@ -233,6 +244,8 @@ SCIP_RETCODE ObjPricerLinFit::addRemainingConnectivityCons(Graph::vertex_descrip
         SCIP_CALL(SCIPaddCons(scip_pricer, cons1));
         connectivity_cons.push_back(cons1);
     }
+    
+    return SCIP_OKAY;
 }
 
 SCIP_RETCODE ObjPricerLinFit::addPartitionVar(SCIP* scip, SCIP_SOL* sol)
@@ -256,4 +269,6 @@ SCIP_RETCODE ObjPricerLinFit::addPartitionVar(SCIP* scip, SCIP_SOL* sol)
         }
     }
     SCIP_CALL(SCIPaddCoefLinear(scip, _num_partitions_cons, x_P, 1.0));
+    
+    return SCIP_OKAY;
 }
