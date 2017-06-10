@@ -15,7 +15,7 @@ class ObjPricerLinFit : public ObjPricer
 public:
     ObjPricerLinFit(SCIP* scip, Graph* g_, int k, std::vector<Graph::vertex_descriptor> T, std::vector<SCIP_CONS*> partitioning_cons, SCIP_CONS* num_partitions_cons);
     
-    SCIP_RETCODE initialSetup(); // set up scip_pricer
+    SCIP_DECL_PRICERINIT(scip_init); // set up scip_pricer
     
     SCIP_RETCODE setupVars();
     

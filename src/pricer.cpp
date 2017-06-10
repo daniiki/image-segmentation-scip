@@ -12,7 +12,17 @@ using namespace scip;
 ObjPricerLinFit::ObjPricerLinFit(SCIP* scip, Graph* g_, int k, std::vector<Graph::vertex_descriptor> T, std::vector<SCIP_CONS*> partitioning_cons, SCIP_CONS* num_partitions_cons) :
     ObjPricer(scip, "name", "description", 0, TRUE),
     g(g_), _k(k), _T(T), _partitioning_cons(partitioning_cons), _num_partitions_cons(num_partitions_cons)
+{}
+
+SCIP_DECL_PRICERINIT(ObjPricerLinFit::scip_init)
 {
+    for (auto it = _partitioning_cons.begin(); it!=_partitioning_cons.end(); ++it)
+    {
+        SCIP_CALL(SCIPgetTransformedCons(scip, *it, &(*it)));
+    }
+    
+    SCIP_CALL(SCIPgetTransformedCons(scip, _num_partitions_cons, &_num_partitions_cons));
+    
     _bigM = 0;
     for (auto p = vertices(*g); p.first != p.second; ++p.first)
     {
@@ -23,11 +33,6 @@ ObjPricerLinFit::ObjPricerLinFit(SCIP* scip, Graph* g_, int k, std::vector<Graph
     }
     _n = num_vertices(*g);
     
-    initialSetup();
-}
-
-SCIP_RETCODE ObjPricerLinFit::initialSetup()
-{
     SCIP_CALL(SCIPcreate(& scip_pricer));
     SCIP_CALL(SCIPincludeDefaultPlugins(scip_pricer));
     
