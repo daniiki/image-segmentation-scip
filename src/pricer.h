@@ -1,10 +1,19 @@
 #include <objscip/objscip.h>
 #include <boost/graph/adjacency_list.hpp>
 
+using namespace scip;
+
+struct Superpixel
+{
+    unsigned int color;
+};
+typedef boost::adjacency_list<boost::vecS, boost::vecS, boost::undirectedS, Superpixel> Graph;
+
+
 class ObjPricerLinFit : public ObjPricer
 {
 public:
-    ObjPricerLinFit(SCIP* scip, Graph* g, int k, std::vector<Graph::vertex_descriptor> T, std::vector<SCIP_CONS*> partitioning_cons, SCIP_CONS* num_partitions_cons);
+    ObjPricerLinFit(SCIP* scip, Graph* g_, int k, std::vector<Graph::vertex_descriptor> T, std::vector<SCIP_CONS*> partitioning_cons, SCIP_CONS* num_partitions_cons);
     
     SCIP_RETCODE initialSetup(); // set up scip_pricer
     
@@ -16,12 +25,12 @@ public:
     
     virtual SCIP_DECL_PRICERREDCOST(scip_redcost);
     
-    SCIP_RETCODE 
+    SCIP_RETCODE addRemainingConnectivityCons(Graph::vertex_descriptor t);
     
-    SCIP_RETCODE addPartitionVar(SCIP_SOL* sol);
+    SCIP_RETCODE addPartitionVar(SCIP* scip, SCIP_SOL* sol);
     
 private:
-    Graph* _g;
+    Graph* g;
     int _k;
     std::vector<Graph::vertex_descriptor> _T;
     std::vector<SCIP_CONS*> _partitioning_cons;
@@ -34,5 +43,11 @@ private:
     
     // pricing problem variables
     std::vector<SCIP_VAR*> x;
+    SCIP_VAR* c_P;
     std::vector<SCIP_VAR*> delta;
+    std::map<Graph::edge_descriptor, SCIP_VAR*> e1; // e_source,target
+    std::map<Graph::edge_descriptor, SCIP_VAR*> e2; // e_target,source
+    
+    // pricing problem constraints
+    std::vector<SCIP_CONS*> connectivity_cons;
 };
