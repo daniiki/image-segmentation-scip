@@ -1,14 +1,7 @@
 #include <objscip/objscip.h>
-#include <boost/graph/adjacency_list.hpp>
+#include "graph.h"
 
 using namespace scip;
-
-struct Superpixel
-{
-    unsigned int color;
-};
-typedef boost::adjacency_list<boost::vecS, boost::vecS, boost::undirectedS, Superpixel> Graph;
-
 
 class ObjPricerLinFit : public ObjPricer
 {
