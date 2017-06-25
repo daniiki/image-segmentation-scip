@@ -17,6 +17,17 @@ Graph create_graph()
     {
         g[*p.first].color = colors[*p.first];
     }
+    //make graph complete
+    for (auto s = vertices(g); s.first != s.second; ++s.first)
+    {
+        for (auto t = vertices(g); t.first != t.second; ++t.first)
+        {
+            if (*s.first < *t.first)
+            {
+                add_edge(*s.first, *t.first, g);
+            }
+        }
+    }
     return g;
 }
 
@@ -62,7 +73,17 @@ SCIP_RETCODE master_problem(Graph g, int k, std::vector<Graph::vertex_descriptor
     for (auto p = vertices(g); p.first != p.second; ++p.first)
     {
         SCIP_CONS* cons1;
-        SCIP_CALL(SCIPcreateConsLinear(scip, & cons1, "first", 0, NULL, NULL, 1.0, 1.0, TRUE, TRUE, TRUE, TRUE, TRUE, FALSE, FALSE, FALSE, FALSE, FALSE));
+        SCIP_CALL(SCIPcreateConsLinear(scip, & cons1, "first", 0, NULL, NULL, 1.0, 1.0,
+                     true,                   /* initial */
+                     false,                  /* separate */
+                     true,                   /* enforce */
+                     true,                   /* check */
+                     true,                   /* propagate */
+                     false,                  /* local */
+                     true,                   /* modifiable */
+                     false,                  /* dynamic */
+                     false,                  /* removable */
+                     false) );               /* stickingatnode */
         for (int i = 0; i != inital_partitions.size(); ++i)
         {
             if (inital_partitions[i].find(*p.first) != inital_partitions[i].end())
@@ -75,7 +96,17 @@ SCIP_RETCODE master_problem(Graph g, int k, std::vector<Graph::vertex_descriptor
     }
     
     SCIP_CONS* num_partitions_cons;
-    SCIP_CALL(SCIPcreateConsLinear(scip, & num_partitions_cons, "second", 0, NULL, NULL, k, k, TRUE, TRUE, TRUE, TRUE, TRUE, FALSE, FALSE, FALSE, FALSE, FALSE));
+    SCIP_CALL(SCIPcreateConsLinear(scip, & num_partitions_cons, "second", 0, NULL, NULL, k, k,
+                     true,                   /* initial */
+                     false,                  /* separate */
+                     true,                   /* enforce */
+                     true,                   /* check */
+                     true,                   /* propagate */
+                     false,                  /* local */
+                     true,                   /* modifiable */
+                     false,                  /* dynamic */
+                     false,                  /* removable */
+                     false) );               /* stickingatnode */
     for (int i = 0; i != inital_partitions.size(); ++i)
     {
         SCIP_CALL(SCIPaddCoefLinear(scip, num_partitions_cons, vars[i], 1.0));
@@ -99,8 +130,23 @@ SCIP_RETCODE master_problem(Graph g, int k, std::vector<Graph::vertex_descriptor
 int main()
 {
     auto g = create_graph();
+    
+    for (auto p = edges(g); p.first != p.second; ++p.first)
+    {
+        std::cout << boost::source(*p.first, g) << "," << boost::target(*p.first, g) << std::endl;
+    }
+    std::cout << std::endl;
+    for (auto p = out_edges(1, g); p.first != p.second; ++p.first)
+    {
+        std::cout << boost::source(*p.first, g) << "," << boost::target(*p.first, g) << std::endl;
+    }
+    
+    for (auto s = vertices(g); s.first != s.second; ++s.first)
+    {
+        std::cout << *s.first << std::endl;
+    }
     std::vector<Graph::vertex_descriptor> T = {0, 3, 6};
     std::vector<std::set<Graph::vertex_descriptor>> inital_partitions = {{0}, {3}, {1,2,4,5,6,7}};
-    master_problem(g, 3, T, inital_partitions);
+    //master_problem(g, 3, T, inital_partitions);
     return 0;
 }

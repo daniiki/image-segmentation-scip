@@ -17,12 +17,11 @@ ObjPricerLinFit::ObjPricerLinFit(SCIP* scip, Graph* g_, int k, std::vector<Graph
 
 SCIP_DECL_PRICERINIT(ObjPricerLinFit::scip_init)
 {
-//     for (auto it = _partitioning_cons.begin(); it!=_partitioning_cons.end(); ++it)
-//     {
-//         SCIP_CALL(SCIPgetTransformedCons(scip, *it, &(*it)));
-//     }
-//     
-//     SCIP_CALL(SCIPgetTransformedCons(scip, _num_partitions_cons, &_num_partitions_cons));
+    for (size_t i = 0; i < _partitioning_cons.size(); ++i)
+    {
+        SCIP_CALL(SCIPgetTransformedCons(scip, _partitioning_cons[i], &_partitioning_cons[i]));
+    }
+    SCIP_CALL(SCIPgetTransformedCons(scip, _num_partitions_cons, &_num_partitions_cons));
     
     _bigM = 0;
     for (auto p = vertices(*g); p.first != p.second; ++p.first)
@@ -182,8 +181,12 @@ SCIP_DECL_PRICERREDCOST(ObjPricerLinFit::scip_redcost)
     std::cout<<std::endl<<"enter pricer"<<std::endl<<std::endl;
     for (auto s = vertices(*g); s.first != s.second; ++s.first)
     {
-        auto mu_s = SCIPgetDualsolLinear(scip, _partitioning_cons[*s.first]);
-        SCIPchgVarObj(scip_pricer, x[*s.first], -mu_s);
+        std::cout << *s.first << std::endl;
+        std::cout << _partitioning_cons[*s.first] << std::endl;
+        SCIP_Real mu_s = SCIPgetDualsolLinear(scip, _partitioning_cons[*s.first]);
+        std::cout << "bla" << std::endl;
+        SCIP_CALL(SCIPfreeTransform(scip_pricer)); // reset transformation and solution data and SCIP stage
+        SCIP_CALL(SCIPchgVarObj(scip_pricer, x[*s.first], -mu_s));
     }
     for (auto t : _T)
     {
