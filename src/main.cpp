@@ -127,10 +127,18 @@ SCIP_RETCODE master_problem(Graph g, int k, std::vector<Graph::vertex_descriptor
     SCIP_CALL(SCIPsolve(scip));
     SCIP_SOL* sol = SCIPgetBestSol(scip);
     
+    // print all variable values (of the variables x_P)
     SCIP_VAR** variables = SCIPgetVars(scip);
     for (int i = 0; i < SCIPgetNVars(scip); ++i)
     {
-        if (SCIPgetSolVal(scip, sol, variables[i]) == 1)
+        std::cout << SCIPgetSolVal(scip, sol, variables[i]) << std::endl;
+    }
+    std::cout << std::endl;
+
+    // print selected segments
+    for (int i = 0; i < SCIPgetNVars(scip); ++i)
+    {
+        if (SCIPisZero(scip, SCIPgetSolVal(scip, sol, variables[i]) - 1.0))
         {
             auto vardata = (ObjVardataSegment*) SCIPgetObjVardata(scip, variables[i]);
             for (Graph::vertex_descriptor s : vardata->getSuperpixels())

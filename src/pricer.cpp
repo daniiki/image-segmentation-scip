@@ -261,12 +261,36 @@ SCIP_RETCODE ObjPricerLinFit::addPartitionVar(SCIP* scip, SCIP_SOL* sol)
     std::vector<Graph::vertex_descriptor> superpixels;
     for (auto s = vertices(*g); s.first != s.second; ++s.first)
     {
-        if (SCIPgetSolVal(scip_pricer, sol, x[*s.first]) == 1)
+        if (SCIPisZero(scip_pricer, SCIPgetSolVal(scip_pricer, sol, x[*s.first]) - 1.0))
         {
             superpixels.push_back(*s.first);
         }
     }
     auto vardata = new ObjVardataSegment(superpixels);
+    
+    /* DEBUG */
+    // print values of the flow variables
+    std::set<Graph::vertex_descriptor> superpixels_(superpixels.begin(), superpixels.end());
+    if (superpixels_ == std::set<Graph::vertex_descriptor>{1,6,7,9,11})
+    {
+        for (auto s = vertices(*g); s.first != s.second; ++s.first)
+        {
+            std::cout << "x_" << *s.first << "\t";
+            std::cout << SCIPgetSolVal(scip_pricer, sol, x[*s.first]) << std::endl;
+        }
+        std::cout << std::endl;
+        for (auto p = edges(*g); p.first != p.second; ++p.first)
+        {
+            auto source = boost::source(*p.first, *g);
+            auto target = boost::target(*p.first, *g);
+            std::cout << "e_" << source << "," << target << "\t";
+            std::cout << SCIPgetSolVal(scip_pricer, sol, e[source][target]) << std::endl;
+            std::cout << "e_" << target << "," << source << "\t";
+            std::cout << SCIPgetSolVal(scip_pricer, sol, e[target][source]) << std::endl;
+        }
+        std::cin.ignore();
+    }
+    /* DEBUG */
     
     SCIP_VAR* x_P;
     SCIP_CALL(SCIPcreateObjVar(scip, & x_P, "x_P", 0.0, 1.0, gamma_P, SCIP_VARTYPE_BINARY, TRUE, FALSE, vardata, TRUE));
@@ -275,7 +299,7 @@ SCIP_RETCODE ObjPricerLinFit::addPartitionVar(SCIP* scip, SCIP_SOL* sol)
     // add coefficients to constraints (of the master problem)
     for (auto s = vertices(*g); s.first != s.second; ++s.first)
     {
-        if (SCIPgetSolVal(scip_pricer, sol, x[*s.first]) == 1)
+        if (SCIPisZero(scip_pricer, SCIPgetSolVal(scip_pricer, sol, x[*s.first]) - 1.0))
         {
             SCIP_CALL(SCIPaddCoefLinear(scip, _partitioning_cons[*s.first], x_P, 1.0));
         }
