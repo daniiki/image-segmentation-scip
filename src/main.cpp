@@ -9,25 +9,28 @@
 #include <iostream>
 #include <math.h>
 
+#include "vardata.h"
+
 Graph create_graph()
 {
-    Graph g(8);
-    std::vector<unsigned int> colors = {1,2,3,100,101,102,200,202};
+    Graph g(12);
+    std::vector<unsigned int> colors = {0,100,1,200,2,200,100,100,202,100,202,100};
     for (auto p = vertices(g); p.first != p.second; ++p.first)
     {
         g[*p.first].color = colors[*p.first];
     }
-    //make graph complete
-    for (auto s = vertices(g); s.first != s.second; ++s.first)
-    {
-        for (auto t = vertices(g); t.first != t.second; ++t.first)
-        {
-            if (*s.first < *t.first)
-            {
-                add_edge(*s.first, *t.first, g);
-            }
-        }
-    }
+    add_edge(0,1,g);
+    add_edge(0,2,g);
+    add_edge(1,6,g);
+    add_edge(2,3,g);
+    add_edge(2,4,g);
+    add_edge(3,5,g);
+    add_edge(5,10,g);
+    add_edge(6,7,g);
+    add_edge(6,8,g);
+    add_edge(8,9,g);
+    add_edge(8,10,g);
+    add_edge(9,11,g);
     return g;
 }
 
@@ -64,7 +67,7 @@ SCIP_RETCODE master_problem(Graph g, int k, std::vector<Graph::vertex_descriptor
     for (auto partition : inital_partitions)
     {
         SCIP_VAR* var;
-        SCIP_CALL(SCIPcreateVar(scip, & var, "x_P", 0.0, 1.0, gamma(g, partition), SCIP_VARTYPE_CONTINUOUS, TRUE, FALSE, NULL, NULL, NULL, NULL, NULL));
+        SCIP_CALL(SCIPcreateVar(scip, & var, "x_P", 0.0, 1.0, gamma(g, partition), SCIP_VARTYPE_BINARY, TRUE, FALSE, NULL, NULL, NULL, NULL, NULL));
         SCIP_CALL(SCIPaddVar(scip, var));
         vars.push_back(var);
     }
@@ -124,14 +127,28 @@ SCIP_RETCODE master_problem(Graph g, int k, std::vector<Graph::vertex_descriptor
     SCIP_CALL(SCIPsolve(scip));
     SCIP_SOL* sol = SCIPgetBestSol(scip);
     
+    SCIP_VAR** variables = SCIPgetVars(scip);
+    for (int i = 0; i < SCIPgetNVars(scip); ++i)
+    {
+        if (SCIPgetSolVal(scip, sol, variables[i]) == 1)
+        {
+            auto vardata = (ObjVardataSegment*) SCIPgetObjVardata(scip, variables[i]);
+            for (Graph::vertex_descriptor s : vardata->getSuperpixels())
+            {
+                std::cout << s << " ";
+            }
+            std::cout << std::endl;
+        }
+    }
+    
     return SCIP_OKAY;
 }
 
 int main()
 {
     auto g = create_graph();
-    std::vector<Graph::vertex_descriptor> T = {0, 3, 6};
-    std::vector<std::set<Graph::vertex_descriptor>> inital_partitions = {{0}, {3}, {1,2,4,5,6,7}};
-    master_problem(g, 3, T, inital_partitions);
+    std::vector<Graph::vertex_descriptor> T = {4, 11, 10, 7};
+    std::vector<std::set<Graph::vertex_descriptor>> inital_partitions = {{0,2,3,4,5}, {10}, {1, 6, 8, 9, 11}, {7}} ;
+    master_problem(g, 4, T, inital_partitions);
     return 0;
 }

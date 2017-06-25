@@ -7,6 +7,7 @@
 #include <iostream>
 
 #include "pricer.h"
+#include "vardata.h"
 
 using namespace scip;
 
@@ -257,8 +258,18 @@ SCIP_RETCODE ObjPricerLinFit::addPartitionVar(SCIP* scip, SCIP_SOL* sol)
         gamma_P += SCIPgetSolVal(scip_pricer, sol, delta[*s.first]);
     }
     
+    std::vector<Graph::vertex_descriptor> superpixels;
+    for (auto s = vertices(*g); s.first != s.second; ++s.first)
+    {
+        if (SCIPgetSolVal(scip_pricer, sol, x[*s.first]) == 1)
+        {
+            superpixels.push_back(*s.first);
+        }
+    }
+    auto vardata = new ObjVardataSegment(superpixels);
+    
     SCIP_VAR* x_P;
-    SCIP_CALL(SCIPcreateVar(scip, & x_P, "x_P", 0.0, 1.0, gamma_P, SCIP_VARTYPE_CONTINUOUS, TRUE, FALSE, NULL, NULL, NULL, NULL, NULL));
+    SCIP_CALL(SCIPcreateObjVar(scip, & x_P, "x_P", 0.0, 1.0, gamma_P, SCIP_VARTYPE_BINARY, TRUE, FALSE, vardata, TRUE));
     SCIP_CALL(SCIPaddPricedVar(scip, x_P, 1.0));
     
     // add coefficients to constraints (of the master problem)
