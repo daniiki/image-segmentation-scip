@@ -203,7 +203,6 @@ SCIP_DECL_PRICERREDCOST(ObjPricerLinFit::scip_redcost)
 
 SCIP_RETCODE ObjPricerLinFit::addRemainingConnectivityCons(Graph::vertex_descriptor t)
 {
-    std::cout<<std::endl<<"add"<<std::endl<<std::endl;
     for (auto cons : connectivity_cons)
     {
         SCIP_CALL(SCIPdelCons(scip_pricer, cons));
