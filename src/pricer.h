@@ -38,8 +38,7 @@ private:
     std::vector<SCIP_VAR*> x;
     SCIP_VAR* c_P;
     std::vector<SCIP_VAR*> delta;
-    std::map<Graph::edge_descriptor, SCIP_VAR*> e1; // e_source,target
-    std::map<Graph::edge_descriptor, SCIP_VAR*> e2; // e_target,source
+    std::vector<std::vector<SCIP_VAR*>> e; // e[i][j] is e_i,j
     
     // pricing problem constraints
     std::vector<SCIP_CONS*> connectivity_cons;

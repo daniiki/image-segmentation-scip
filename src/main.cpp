@@ -130,23 +130,8 @@ SCIP_RETCODE master_problem(Graph g, int k, std::vector<Graph::vertex_descriptor
 int main()
 {
     auto g = create_graph();
-    
-    for (auto p = edges(g); p.first != p.second; ++p.first)
-    {
-        std::cout << boost::source(*p.first, g) << "," << boost::target(*p.first, g) << std::endl;
-    }
-    std::cout << std::endl;
-    for (auto p = out_edges(1, g); p.first != p.second; ++p.first)
-    {
-        std::cout << boost::source(*p.first, g) << "," << boost::target(*p.first, g) << std::endl;
-    }
-    
-    for (auto s = vertices(g); s.first != s.second; ++s.first)
-    {
-        std::cout << *s.first << std::endl;
-    }
     std::vector<Graph::vertex_descriptor> T = {0, 3, 6};
     std::vector<std::set<Graph::vertex_descriptor>> inital_partitions = {{0}, {3}, {1,2,4,5,6,7}};
-    //master_problem(g, 3, T, inital_partitions);
+    master_problem(g, 3, T, inital_partitions);
     return 0;
 }

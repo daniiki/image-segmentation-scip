@@ -67,17 +67,25 @@ SCIP_RETCODE ObjPricerLinFit::setupVars()
     SCIP_CALL(SCIPaddVar(scip_pricer, c_P));
     
     // float variables for connectivity constraints
+    e.resize(_n);
+    for (size_t i = 0; i < _n; ++i)
+    {
+        e[i].resize(_n);
+    }
     for (auto p = edges(*g); p.first != p.second; ++p.first)
     {
+        auto source = boost::source(*p.first, *g);
+        auto target = boost::target(*p.first, *g);
+        
         SCIP_VAR* e_vw;
         SCIP_CALL(SCIPcreateVar(scip_pricer, & e_vw, "e_vw", 0.0, SCIPinfinity(scip_pricer), 0.0, SCIP_VARTYPE_CONTINUOUS, TRUE, FALSE, NULL, NULL, NULL, NULL, NULL));
         SCIP_CALL(SCIPaddVar(scip_pricer, e_vw));
-        e1[*p.first] = e_vw;
+        e[source][target] = e_vw;
         
         SCIP_VAR* e_wv;
         SCIP_CALL(SCIPcreateVar(scip_pricer, & e_wv, "e_wv", 0.0, SCIPinfinity(scip_pricer), 0.0, SCIP_VARTYPE_CONTINUOUS, TRUE, FALSE, NULL, NULL, NULL, NULL, NULL));
         SCIP_CALL(SCIPaddVar(scip_pricer, e_wv));
-        e2[*p.first] = e_wv;
+        e[target][source] = e_wv;
     }
     
     return SCIP_OKAY;
@@ -127,23 +135,12 @@ SCIP_RETCODE ObjPricerLinFit::setupConnectivityCons()
             
             for (auto q = out_edges(*s.first, *g); q.first != q.second; ++q.first)
             {
-                auto source = boost::source(*q.first, *g);
+                auto source = boost::source(*q.first, *g); 
+                assert(source == *s.first);
                 auto target = boost::target(*q.first, *g);
-                if (source == *s.first)
-                {
-                    SCIP_CALL(SCIPaddCoefLinear(scip_pricer, cons1, e1[*q.first], 1.0));
-                    SCIP_CALL(SCIPaddCoefLinear(scip_pricer, cons1, e2[*q.first], -1.0));
-                }
-                else if (target == *s.first)
-                {
-                    SCIP_CALL(SCIPaddCoefLinear(scip_pricer, cons1, e2[*q.first], 1.0));
-                    SCIP_CALL(SCIPaddCoefLinear(scip_pricer, cons1, e1[*q.first], -1.0));
-                }
-                else
-                {
-                    std::cerr << "häääää?" << std::endl;
-                    exit(1);
-                }
+               
+                SCIP_CALL(SCIPaddCoefLinear(scip_pricer, cons1, e[source][target], 1.0));
+                SCIP_CALL(SCIPaddCoefLinear(scip_pricer, cons1, e[target][source], -1.0));
             }
             SCIP_CALL(SCIPaddCoefLinear(scip_pricer, cons1, x[*s.first], 1.0));
             SCIP_CALL(SCIPreleaseCons(scip_pricer, &cons1));
@@ -158,16 +155,16 @@ SCIP_RETCODE ObjPricerLinFit::setupConnectivityCons()
         
         SCIP_CONS* cons2;
         SCIP_CALL(SCIPcreateConsLinear(scip_pricer, & cons2, "second", 0, NULL, NULL, -SCIPinfinity(scip_pricer), 0.0, TRUE, TRUE, TRUE, TRUE, TRUE, FALSE, FALSE, FALSE, FALSE, FALSE));
-        SCIP_CALL(SCIPaddCoefLinear(scip_pricer, cons2, e1[*p.first], 1.0));
-        SCIP_CALL(SCIPaddCoefLinear(scip_pricer, cons2, e2[*p.first], 1.0));
+        SCIP_CALL(SCIPaddCoefLinear(scip_pricer, cons2, e[source][target], 1.0));
+        SCIP_CALL(SCIPaddCoefLinear(scip_pricer, cons2, e[target][source], 1.0));
         SCIP_CALL(SCIPaddCoefLinear(scip_pricer, cons2, x[source], _k - _n));
         SCIP_CALL(SCIPaddCons(scip_pricer, cons2));
         SCIP_CALL(SCIPreleaseCons(scip_pricer, &cons2));
         
         SCIP_CONS* cons3;
         SCIP_CALL(SCIPcreateConsLinear(scip_pricer, & cons3, "third", 0, NULL, NULL, -SCIPinfinity(scip_pricer), 0.0, TRUE, TRUE, TRUE, TRUE, TRUE, FALSE, FALSE, FALSE, FALSE, FALSE));
-        SCIP_CALL(SCIPaddCoefLinear(scip_pricer, cons3, e1[*p.first], 1.0));
-        SCIP_CALL(SCIPaddCoefLinear(scip_pricer, cons3, e2[*p.first], 1.0));
+        SCIP_CALL(SCIPaddCoefLinear(scip_pricer, cons3, e[source][target], 1.0));
+        SCIP_CALL(SCIPaddCoefLinear(scip_pricer, cons3, e[target][source], 1.0));
         SCIP_CALL(SCIPaddCoefLinear(scip_pricer, cons3, x[target], _k - _n));
         SCIP_CALL(SCIPaddCons(scip_pricer, cons3));
         SCIP_CALL(SCIPreleaseCons(scip_pricer, &cons3));
@@ -181,10 +178,7 @@ SCIP_DECL_PRICERREDCOST(ObjPricerLinFit::scip_redcost)
     std::cout<<std::endl<<"enter pricer"<<std::endl<<std::endl;
     for (auto s = vertices(*g); s.first != s.second; ++s.first)
     {
-        std::cout << *s.first << std::endl;
-        std::cout << _partitioning_cons[*s.first] << std::endl;
         SCIP_Real mu_s = SCIPgetDualsolLinear(scip, _partitioning_cons[*s.first]);
-        std::cout << "bla" << std::endl;
         SCIP_CALL(SCIPfreeTransform(scip_pricer)); // reset transformation and solution data and SCIP stage
         SCIP_CALL(SCIPchgVarObj(scip_pricer, x[*s.first], -mu_s));
     }
@@ -195,15 +189,11 @@ SCIP_DECL_PRICERREDCOST(ObjPricerLinFit::scip_redcost)
         SCIP_CALL(SCIPsolve(scip_pricer));
         SCIP_SOL* sol = SCIPgetBestSol(scip_pricer);
         SCIP_Real lambda = SCIPgetDualsolLinear(scip, _num_partitions_cons);
-        std::cout << SCIPgetSolOrigObj(scip_pricer, sol) << std::endl << lambda << std::endl;
-        if (SCIPgetSolOrigObj(scip_pricer, sol) < lambda)
+        if (SCIPisNegative(scip, SCIPgetSolOrigObj(scip_pricer, sol) - lambda))
         {
-            std::cout << std::endl << "add var" << std::endl << std::endl;
             SCIP_CALL(addPartitionVar(scip, sol));
         }
     }
-    
-    std::cout<<std::endl<<"leave pricer"<<std::endl<<std::endl;
     
     *result = SCIP_SUCCESS; // at least one improving variable was found,
                             // or it is ensured that no such variable exists
@@ -235,22 +225,10 @@ SCIP_RETCODE ObjPricerLinFit::addRemainingConnectivityCons(Graph::vertex_descrip
         for (auto q = out_edges(s, *g); q.first != q.second; ++q.first)
         {
             auto source = boost::source(*q.first, *g);
+            assert(source == s);
             auto target = boost::target(*q.first, *g);
-            if (source == s)
-            {
-                SCIP_CALL(SCIPaddCoefLinear(scip_pricer, cons1, e1[*q.first], 1.0));
-                SCIP_CALL(SCIPaddCoefLinear(scip_pricer, cons1, e2[*q.first], -1.0));
-            }
-            else if (target == s)
-            {
-                SCIP_CALL(SCIPaddCoefLinear(scip_pricer, cons1, e2[*q.first], 1.0));
-                SCIP_CALL(SCIPaddCoefLinear(scip_pricer, cons1, e1[*q.first], -1.0));
-            }
-            else
-            {
-                std::cerr << "häääää?" << std::endl;
-                exit(1);
-            }
+            SCIP_CALL(SCIPaddCoefLinear(scip_pricer, cons1, e[source][target], 1.0));
+            SCIP_CALL(SCIPaddCoefLinear(scip_pricer, cons1, e[target][source], -1.0));
         }
         
         if (s == t)
