@@ -16,15 +16,10 @@ stdenv.mkDerivation rec {
     "ZIMPL=false"
   ];
 
-  #preBuild = "set -x";
-  #preBuild = ''
-  #  makeFlagsArray=(SHELL="${pkgs.bash}/bin/bash -x" SHARED=true)
-  #'';
+  doCheck = true;
 
-  #doCheck = true;
-
-  installPhase = ''
-    make $makeFlags INSTALLDIR=$out install
+  installFlags = [ "INSTALLDIR=$(out)" ];
+  postInstall = ''
     cp scip-${version}/src/objscip/*.h $out/include/objscip/
   '';
 

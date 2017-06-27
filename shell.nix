@@ -5,5 +5,5 @@ let
   scipoptsuite = (import ./scipoptsuite.nix) { inherit (pkgs) stdenv fetchurl zlib gmp readline; };
 in stdenv.mkDerivation {
   name = "Fortgeschrittenenpraktikum";
-  buildInputs = with pkgs; [ scipoptsuite boost ];
+  buildInputs = with pkgs; [ scipoptsuite boost pngpp ];
 }
