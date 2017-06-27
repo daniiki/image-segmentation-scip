@@ -144,6 +144,7 @@ SCIP_RETCODE ObjPricerLinFit::setupConnectivityCons()
                 SCIP_CALL(SCIPaddCoefLinear(scip_pricer, cons1, e[target][source], -1.0));
             }
             SCIP_CALL(SCIPaddCoefLinear(scip_pricer, cons1, x[*s.first], 1.0));
+            SCIP_CALL(SCIPaddCons(scip_pricer, cons1));
             SCIP_CALL(SCIPreleaseCons(scip_pricer, &cons1));
         }
     }
@@ -170,6 +171,33 @@ SCIP_RETCODE ObjPricerLinFit::setupConnectivityCons()
         SCIP_CALL(SCIPaddCons(scip_pricer, cons3));
         SCIP_CALL(SCIPreleaseCons(scip_pricer, &cons3));
     }
+    
+    // connectivity constraints (27) and (28)
+    // these optional and equivalent to (25) and (26)
+    /* for (auto p = vertices(*g); p.first != p.second; ++p.first)
+    {
+        SCIP_CONS* cons4;
+        SCIP_CALL(SCIPcreateConsLinear(scip_pricer, & cons4, "fourth", 0, NULL, NULL, -SCIPinfinity(scip_pricer), 0.0, TRUE, TRUE, TRUE, TRUE, TRUE, FALSE, FALSE, FALSE, FALSE, FALSE));
+        
+        SCIP_CONS* cons5;
+        SCIP_CALL(SCIPcreateConsLinear(scip_pricer, & cons5, "fifth", 0, NULL, NULL, -SCIPinfinity(scip_pricer), 0.0, TRUE, TRUE, TRUE, TRUE, TRUE, FALSE, FALSE, FALSE, FALSE, FALSE));
+        
+        for (auto q = out_edges(*p.first, *g); q.first != q.second; ++q.first)
+        {
+            auto source = boost::source(*q.first, *g); 
+            assert(source == *p.first);
+            auto target = boost::target(*q.first, *g);
+            
+            SCIP_CALL(SCIPaddCoefLinear(scip_pricer, cons4, e[source][target], 1.0));
+            SCIP_CALL(SCIPaddCoefLinear(scip_pricer, cons5, e[target][source], 1.0));
+        }
+        SCIP_CALL(SCIPaddCoefLinear(scip_pricer, cons4, x[*p.first], -_n + _k));
+        SCIP_CALL(SCIPaddCons(scip_pricer, cons4));
+        SCIP_CALL(SCIPreleaseCons(scip_pricer, &cons4));
+        SCIP_CALL(SCIPaddCoefLinear(scip_pricer, cons5, x[*p.first], -_n + _k));
+        SCIP_CALL(SCIPaddCons(scip_pricer, cons5));
+        SCIP_CALL(SCIPreleaseCons(scip_pricer, &cons5));
+    } */
     
     return SCIP_OKAY;
 }

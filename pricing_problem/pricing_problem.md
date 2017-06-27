@@ -77,12 +77,14 @@ and $M$ can be chosen as
 
 connectivity constraints: 
 \begin{align}
-    \sum_{vw \in \Out(v)}e_{vw}^T - \sum_{wv \in \In(v)}e_{wv}^T &=
+    \sum_{vw \in \Out(v)}e_{v,w}^T - \sum_{wv \in \In(v)}e_{w,v}^T &=
     \begin{cases}
         \sum_{w \in \superpixels}x_w^T-1 & \text{if }v=T \\
         -x_v^T & \text{otherwise}
     \end{cases}
     & \forall v \in \superpixels \\
-    e_{vw}^T + e_{wv}^T &\leq (n-k)x_v^T &\forall (v,w) \in A \\
-    e_{vw}^T + e_{wv}^T &\leq (n-k)x_w^T &\forall (v,w) \in A
+    e_{v,w}^T + e_{w,v}^T &\leq (n-k)x_v^T &\forall vw \in E \\
+    e_{v,w}^T + e_{w,v}^T &\leq (n-k)x_w^T &\forall vw \in E \\
+    \sum_{vw\in\Out(v)} e_{v,w} &\leq (n-k)x_v^T &\forall v\in\superpixels \\
+    \sum_{vw\in\Out(v)} e_{w,v} &\leq (n-k)x_v^T &\forall v\in\superpixels
 \end{align}
