@@ -1,2 +1,2 @@
 program: *.cpp *.h
-	g++ -lscip -lscipopt *.cpp -o program
+	g++ -std=c++17 -lscip -lscipopt *.cpp -o program
