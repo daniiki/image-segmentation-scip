@@ -2,6 +2,7 @@
 #include <png++/png.hpp>
 #include <bitset>
 #include <iostream>
+#include <typeinfo>
 
 void readimage()
 {
@@ -13,9 +14,9 @@ void readimage()
     {
         for (png::uint_32 x = 0; x < image.get_width(); ++x)
         {
-            std::cout<<std::bitset<8>(image[x][y].red)<<std::endl;
-            std::cout<< (uint16_t) image[x][y].red << std::endl;
-            uint32_t argb = (uint16_t) image[x][y].red;
+            uint32_t argb = image[y][x].red << 16
+	        | image[y][x].green << 8
+	        | image[y][x].blue << 0;
             pbuff[x + y*image.get_width()] = argb;
         }
     }
