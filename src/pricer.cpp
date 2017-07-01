@@ -34,12 +34,13 @@ SCIP_DECL_PRICERINIT(ObjPricerLinFit::scip_init)
     }
     _n = num_vertices(*g);
     
+    scip_pricers.resize(_T.size());
     for (size_t i = 0; i < _T.size(); ++i)
     {
         SCIP_CALL(SCIPcreate(&scip_pricers[i]));
         SCIP_CALL(SCIPincludeDefaultPlugins(scip_pricers[i]));
         SCIPsetMessagehdlrQuiet(scip_pricers[i], TRUE);
-    
+
         // create pricing problem
         auto probdata = new PricerData();
         SCIP_CALL(SCIPcreateObjProb(scip_pricers[i], "pricing_problem", probdata, TRUE));
@@ -48,9 +49,9 @@ SCIP_DECL_PRICERINIT(ObjPricerLinFit::scip_init)
         SCIP_CALL(setupVars(scip_pricers[i]));
         SCIP_CALL(setupCons(scip_pricers[i]));
         SCIP_CALL(setupConnectivityCons(scip_pricers[i], _T[i]));
-    
-        return SCIP_OKAY;
     }
+    
+    return SCIP_OKAY;
 }
 
 SCIP_RETCODE ObjPricerLinFit::setupVars(SCIP* scip_pricer)
