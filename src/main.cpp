@@ -10,33 +10,12 @@
 #include <math.h>
 
 #include "vardata.h"
-
-Graph create_graph()
-{
-    Graph g(12);
-    std::vector<unsigned int> colors = {0,100,1,200,2,200,100,100,202,100,202,100};
-    for (auto p = vertices(g); p.first != p.second; ++p.first)
-    {
-        g[*p.first].color = colors[*p.first];
-    }
-    add_edge(0,1,g);
-    add_edge(0,2,g);
-    add_edge(1,6,g);
-    add_edge(2,3,g);
-    add_edge(2,4,g);
-    add_edge(3,5,g);
-    add_edge(5,10,g);
-    add_edge(6,7,g);
-    add_edge(6,8,g);
-    add_edge(8,9,g);
-    add_edge(8,10,g);
-    add_edge(9,11,g);
-    return g;
-}
+#include "image.h"
 
 // TO DO: correctly calculate fitting error
 double gamma(Graph g, std::set<Graph::vertex_descriptor> partition)
 {
+    return 10000.0;
     double sum = 0;
     for (auto superpixel : partition)
     {
@@ -126,16 +105,9 @@ SCIP_RETCODE master_problem(Graph g, int k, std::vector<Graph::vertex_descriptor
     // solve
     SCIP_CALL(SCIPsolve(scip));
     SCIP_SOL* sol = SCIPgetBestSol(scip);
-    
-    // print all variable values (of the variables x_P)
-    SCIP_VAR** variables = SCIPgetVars(scip);
-    for (int i = 0; i < SCIPgetNVars(scip); ++i)
-    {
-        std::cout << SCIPgetSolVal(scip, sol, variables[i]) << std::endl;
-    }
-    std::cout << std::endl;
 
     // print selected segments
+    SCIP_VAR** variables = SCIPgetVars(scip);
     for (int i = 0; i < SCIPgetNVars(scip); ++i)
     {
         if (SCIPisZero(scip, SCIPgetSolVal(scip, sol, variables[i]) - 1.0))
@@ -154,9 +126,29 @@ SCIP_RETCODE master_problem(Graph g, int k, std::vector<Graph::vertex_descriptor
 
 int main()
 {
-    auto g = create_graph();
-    std::vector<Graph::vertex_descriptor> T = {4, 11, 10, 7};
-    std::vector<std::set<Graph::vertex_descriptor>> inital_partitions = {{0,2,3,4,5}, {10}, {1, 6, 8, 9, 11}, {7}} ;
-    master_problem(g, 4, T, inital_partitions);
+    Image image("input3.png", 50);
+    Graph* g = image.graph();
+    int n = num_vertices(*g);
+    int k = 5;
+    int m = n / k;
+    std::vector<Graph::vertex_descriptor> T(k);
+    std::vector<std::set<Graph::vertex_descriptor>> inital_partitions(k);
+    for (int i = 0; i < k; i++)
+    {
+        T[i] = i * m;
+    }
+    for (int i = 0; i < k - 1; i++)
+    {
+        for (int j = T[i]; j < T[i+1]; ++j)
+        {
+            inital_partitions[i].insert(j);
+        }
+    }
+    for (int j = T[k-1]; j < n; ++j)
+    {
+        inital_partitions[k-1].insert(j);
+    }
+
+    master_problem(*g, k, T, inital_partitions);
     return 0;
 }

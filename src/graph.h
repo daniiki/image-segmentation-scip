@@ -8,6 +8,7 @@ struct Superpixel
     unsigned int color;
 };
 
-typedef boost::adjacency_list<boost::vecS, boost::vecS, boost::undirectedS, Superpixel> Graph;
+// setS disallows parallel edges
+typedef boost::adjacency_list<boost::setS, boost::vecS, boost::undirectedS, Superpixel> Graph;
  
 #endif
