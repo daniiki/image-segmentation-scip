@@ -14,6 +14,7 @@ stdenv.mkDerivation rec {
   makeFlags = [
     "SHARED=true"
     "ZIMPL=false"
+    #"VERBOSE=true"
   ];
 
   doCheck = true;
