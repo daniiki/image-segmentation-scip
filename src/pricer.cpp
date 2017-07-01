@@ -36,6 +36,7 @@ SCIP_DECL_PRICERINIT(ObjPricerLinFit::scip_init)
     
     SCIP_CALL(SCIPcreate(& scip_pricer));
     SCIP_CALL(SCIPincludeDefaultPlugins(scip_pricer));
+    SCIPsetMessagehdlrQuiet(scip_pricer, TRUE);
     
     // create pricing problem
     SCIP_CALL(SCIPcreateProb(scip_pricer, "pricing_problem", NULL, NULL, NULL, NULL, NULL, NULL, NULL));
@@ -204,7 +205,6 @@ SCIP_RETCODE ObjPricerLinFit::setupConnectivityCons()
 
 SCIP_DECL_PRICERREDCOST(ObjPricerLinFit::scip_redcost)
 {
-    std::cout<<std::endl<<"enter pricer"<<std::endl<<std::endl;
     for (auto s = vertices(*g); s.first != s.second; ++s.first)
     {
         SCIP_Real mu_s = SCIPgetDualsolLinear(scip, _partitioning_cons[*s.first]);
