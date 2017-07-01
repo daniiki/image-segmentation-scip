@@ -34,89 +34,97 @@ SCIP_DECL_PRICERINIT(ObjPricerLinFit::scip_init)
     }
     _n = num_vertices(*g);
     
-    SCIP_CALL(SCIPcreate(& scip_pricer));
-    SCIP_CALL(SCIPincludeDefaultPlugins(scip_pricer));
-    SCIPsetMessagehdlrQuiet(scip_pricer, TRUE);
+    for (size_t i = 0; i < _T.size(); ++i)
+    {
+        SCIP_CALL(SCIPcreate(&scip_pricers[i]));
+        SCIP_CALL(SCIPincludeDefaultPlugins(scip_pricers[i]));
+        SCIPsetMessagehdlrQuiet(scip_pricers[i], TRUE);
     
-    // create pricing problem
-    SCIP_CALL(SCIPcreateProb(scip_pricer, "pricing_problem", NULL, NULL, NULL, NULL, NULL, NULL, NULL));
-    SCIP_CALL(SCIPsetObjsense(scip_pricer, SCIP_OBJSENSE_MINIMIZE));
+        // create pricing problem
+        auto probdata = new PricerData();
+        SCIP_CALL(SCIPcreateObjProb(scip_pricers[i], "pricing_problem", probdata, TRUE));
+        SCIP_CALL(SCIPsetObjsense(scip_pricers[i], SCIP_OBJSENSE_MINIMIZE));
     
-    SCIP_CALL(setupVars());
-    SCIP_CALL(setupCons());
-    SCIP_CALL(setupConnectivityCons());
+        SCIP_CALL(setupVars(scip_pricers[i]));
+        SCIP_CALL(setupCons(scip_pricers[i]));
+        SCIP_CALL(setupConnectivityCons(scip_pricers[i], _T[i]));
     
-    return SCIP_OKAY;
+        return SCIP_OKAY;
+    }
 }
 
-SCIP_RETCODE ObjPricerLinFit::setupVars()
+SCIP_RETCODE ObjPricerLinFit::setupVars(SCIP* scip_pricer)
 {
+    auto probdata = (PricerData*) SCIPgetObjProbData(scip_pricer);
+
     for (auto p = vertices(*g); p.first != p.second; ++p.first)
     {
         SCIP_Real mu_s = 0.0; // random value, is set to the correct one at each iteration
         SCIP_VAR* x_s;
         SCIP_CALL(SCIPcreateVar(scip_pricer, & x_s, "x_s", 0.0, 1.0, -mu_s, SCIP_VARTYPE_BINARY, TRUE, FALSE, NULL, NULL, NULL, NULL, NULL));
         SCIP_CALL(SCIPaddVar(scip_pricer, x_s));
-        x.push_back(x_s);
+        probdata->x.push_back(x_s);
         
         SCIP_VAR* delta_s;
         SCIP_CALL(SCIPcreateVar(scip_pricer, & delta_s, "delta_s", 0.0, SCIPinfinity(scip_pricer), 1.0, SCIP_VARTYPE_CONTINUOUS, TRUE, FALSE, NULL, NULL, NULL, NULL, NULL));
         SCIP_CALL(SCIPaddVar(scip_pricer, delta_s));
-        delta.push_back(delta_s);
+        probdata->delta.push_back(delta_s);
     }
-    
-    SCIP_CALL(SCIPcreateVar(scip_pricer, & c_P, "c_P", -SCIPinfinity(scip_pricer), SCIPinfinity(scip_pricer), 0.0, SCIP_VARTYPE_CONTINUOUS, TRUE, FALSE, NULL, NULL, NULL, NULL, NULL));
-    SCIP_CALL(SCIPaddVar(scip_pricer, c_P));
-    
+
+    SCIP_CALL(SCIPcreateVar(scip_pricer, & probdata->c_P, "c_P", -SCIPinfinity(scip_pricer), SCIPinfinity(scip_pricer), 0.0, SCIP_VARTYPE_CONTINUOUS, TRUE, FALSE, NULL, NULL, NULL, NULL, NULL));
+    SCIP_CALL(SCIPaddVar(scip_pricer, probdata->c_P));
+
     // float variables for connectivity constraints
-    e.resize(_n);
+    probdata->e.resize(_n);
     for (size_t i = 0; i < _n; ++i)
     {
-        e[i].resize(_n);
+        probdata->e[i].resize(_n);
     }
     for (auto p = edges(*g); p.first != p.second; ++p.first)
     {
         auto source = boost::source(*p.first, *g);
         auto target = boost::target(*p.first, *g);
-        
+
         SCIP_VAR* e_vw;
         SCIP_CALL(SCIPcreateVar(scip_pricer, & e_vw, "e_vw", 0.0, SCIPinfinity(scip_pricer), 0.0, SCIP_VARTYPE_CONTINUOUS, TRUE, FALSE, NULL, NULL, NULL, NULL, NULL));
         SCIP_CALL(SCIPaddVar(scip_pricer, e_vw));
-        e[source][target] = e_vw;
-        
+        probdata->e[source][target] = e_vw;
+
         SCIP_VAR* e_wv;
         SCIP_CALL(SCIPcreateVar(scip_pricer, & e_wv, "e_wv", 0.0, SCIPinfinity(scip_pricer), 0.0, SCIP_VARTYPE_CONTINUOUS, TRUE, FALSE, NULL, NULL, NULL, NULL, NULL));
         SCIP_CALL(SCIPaddVar(scip_pricer, e_wv));
-        e[target][source] = e_wv;
+        probdata->e[target][source] = e_wv;
     }
-    
+
     return SCIP_OKAY;
 }
 
-SCIP_RETCODE ObjPricerLinFit::setupCons()
+SCIP_RETCODE ObjPricerLinFit::setupCons(SCIP* scip_pricer)
 {
+    auto probdata = (PricerData*) SCIPgetObjProbData(scip_pricer);
+
     for (auto p = vertices(*g); p.first != p.second; ++p.first)
     {
         SCIP_CONS* cons1;
         SCIP_CALL(SCIPcreateConsLinear(scip_pricer, & cons1, "first", 0, NULL, NULL, -SCIPinfinity(scip_pricer), _bigM + (*g)[*p.first].color, TRUE, TRUE, TRUE, TRUE, TRUE, FALSE, FALSE, FALSE, FALSE, FALSE));
-        SCIP_CALL(SCIPaddCoefLinear(scip_pricer, cons1, x[*p.first], _bigM));
-        SCIP_CALL(SCIPaddCoefLinear(scip_pricer, cons1, delta[*p.first], -1.0));
-        SCIP_CALL(SCIPaddCoefLinear(scip_pricer, cons1, c_P, 1.0));
+        SCIP_CALL(SCIPaddCoefLinear(scip_pricer, cons1, probdata->x[*p.first], _bigM));
+        SCIP_CALL(SCIPaddCoefLinear(scip_pricer, cons1, probdata->delta[*p.first], -1.0));
+        SCIP_CALL(SCIPaddCoefLinear(scip_pricer, cons1, probdata->c_P, 1.0));
         SCIP_CALL(SCIPaddCons(scip_pricer, cons1));
         SCIP_CALL(SCIPreleaseCons(scip_pricer, &cons1));
         
         SCIP_CONS* cons2;
         SCIP_CALL(SCIPcreateConsLinear(scip_pricer, & cons2, "second", 0, NULL, NULL, -SCIPinfinity(scip_pricer), _bigM - (*g)[*p.first].color, TRUE, TRUE, TRUE, TRUE, TRUE, FALSE, FALSE, FALSE, FALSE, FALSE));
-        SCIP_CALL(SCIPaddCoefLinear(scip_pricer, cons2, x[*p.first], _bigM));
-        SCIP_CALL(SCIPaddCoefLinear(scip_pricer, cons2, delta[*p.first], -1.0));
-        SCIP_CALL(SCIPaddCoefLinear(scip_pricer, cons2, c_P, -1.0));
+        SCIP_CALL(SCIPaddCoefLinear(scip_pricer, cons2, probdata->x[*p.first], _bigM));
+        SCIP_CALL(SCIPaddCoefLinear(scip_pricer, cons2, probdata->delta[*p.first], -1.0));
+        SCIP_CALL(SCIPaddCoefLinear(scip_pricer, cons2, probdata->c_P, -1.0));
         SCIP_CALL(SCIPaddCons(scip_pricer, cons2));
         SCIP_CALL(SCIPreleaseCons(scip_pricer, &cons2));
         
         SCIP_CONS* cons3;
         SCIP_CALL(SCIPcreateConsLinear(scip_pricer, & cons3, "third", 0, NULL, NULL, -SCIPinfinity(scip_pricer), 0, TRUE, TRUE, TRUE, TRUE, TRUE, FALSE, FALSE, FALSE, FALSE, FALSE));
-        SCIP_CALL(SCIPaddCoefLinear(scip_pricer, cons3, x[*p.first], -_bigM));
-        SCIP_CALL(SCIPaddCoefLinear(scip_pricer, cons3, delta[*p.first], 1.0));
+        SCIP_CALL(SCIPaddCoefLinear(scip_pricer, cons3, probdata->x[*p.first], -_bigM));
+        SCIP_CALL(SCIPaddCoefLinear(scip_pricer, cons3, probdata->delta[*p.first], 1.0));
         SCIP_CALL(SCIPaddCons(scip_pricer, cons3));
         SCIP_CALL(SCIPreleaseCons(scip_pricer, &cons3));
     }
@@ -124,30 +132,45 @@ SCIP_RETCODE ObjPricerLinFit::setupCons()
     return SCIP_OKAY;
 }
 
-SCIP_RETCODE ObjPricerLinFit::setupConnectivityCons()
+SCIP_RETCODE ObjPricerLinFit::setupConnectivityCons(SCIP* scip_pricer, Graph::vertex_descriptor t)
 {
-    // connectivity constraints (24) for s not in T
+    auto probdata = (PricerData*) SCIPgetObjProbData(scip_pricer);
+
+    // connectivity constraints (24)
     for (auto s = vertices(*g); s.first != s.second; ++s.first)
     {
-        // if s is not in T
-        if (std::find(_T.begin(), _T.end(), *s.first) == _T.end())
+        SCIP_CONS* cons1;
+        if (*s.first == t)
         {
-            SCIP_CONS* cons1;
-            SCIP_CALL(SCIPcreateConsLinear(scip_pricer, & cons1, "first", 0, NULL, NULL, 0.0, 0.0, TRUE, TRUE, TRUE, TRUE, TRUE, FALSE, FALSE, FALSE, FALSE, FALSE));
-            
-            for (auto q = out_edges(*s.first, *g); q.first != q.second; ++q.first)
-            {
-                auto source = boost::source(*q.first, *g); 
-                assert(source == *s.first);
-                auto target = boost::target(*q.first, *g);
-               
-                SCIP_CALL(SCIPaddCoefLinear(scip_pricer, cons1, e[source][target], 1.0));
-                SCIP_CALL(SCIPaddCoefLinear(scip_pricer, cons1, e[target][source], -1.0));
-            }
-            SCIP_CALL(SCIPaddCoefLinear(scip_pricer, cons1, x[*s.first], 1.0));
-            SCIP_CALL(SCIPaddCons(scip_pricer, cons1));
-            SCIP_CALL(SCIPreleaseCons(scip_pricer, &cons1));
+            SCIP_CALL(SCIPcreateConsLinear(scip_pricer, & cons1, "first", 0, NULL, NULL, -1.0, -1.0, TRUE, TRUE, TRUE, TRUE, TRUE, FALSE, FALSE, FALSE, FALSE, FALSE));
         }
+        else
+        {
+            SCIP_CALL(SCIPcreateConsLinear(scip_pricer, & cons1, "first", 0, NULL, NULL, 0.0, 0.0, TRUE, TRUE, TRUE, TRUE, TRUE, FALSE, FALSE, FALSE, FALSE, FALSE));
+        }
+ 
+        for (auto q = out_edges(*s.first, *g); q.first != q.second; ++q.first)
+        {
+            auto source = boost::source(*q.first, *g);
+            assert(source == *s.first);
+            auto target = boost::target(*q.first, *g);
+            SCIP_CALL(SCIPaddCoefLinear(scip_pricer, cons1, probdata->e[source][target], 1.0));
+            SCIP_CALL(SCIPaddCoefLinear(scip_pricer, cons1, probdata->e[target][source], -1.0));
+        }
+
+        if (*s.first == t)
+        {
+            for (auto q = vertices(*g); q.first != q.second; ++q.first)
+            {
+                SCIP_CALL(SCIPaddCoefLinear(scip_pricer, cons1, probdata->x[*q.first], -1.0));
+            }
+        }
+        else
+        {
+            SCIP_CALL(SCIPaddCoefLinear(scip_pricer, cons1, probdata->x[*s.first], 1.0));
+        }
+        SCIP_CALL(SCIPaddCons(scip_pricer, cons1));
+        SCIP_CALL(SCIPreleaseCons(scip_pricer, &cons1));
     }
     
     // connectivity constraints (25) and (26)        
@@ -158,17 +181,17 @@ SCIP_RETCODE ObjPricerLinFit::setupConnectivityCons()
         
         SCIP_CONS* cons2;
         SCIP_CALL(SCIPcreateConsLinear(scip_pricer, & cons2, "second", 0, NULL, NULL, -SCIPinfinity(scip_pricer), 0.0, TRUE, TRUE, TRUE, TRUE, TRUE, FALSE, FALSE, FALSE, FALSE, FALSE));
-        SCIP_CALL(SCIPaddCoefLinear(scip_pricer, cons2, e[source][target], 1.0));
-        SCIP_CALL(SCIPaddCoefLinear(scip_pricer, cons2, e[target][source], 1.0));
-        SCIP_CALL(SCIPaddCoefLinear(scip_pricer, cons2, x[source], _k - _n));
+        SCIP_CALL(SCIPaddCoefLinear(scip_pricer, cons2, probdata->e[source][target], 1.0));
+        SCIP_CALL(SCIPaddCoefLinear(scip_pricer, cons2, probdata->e[target][source], 1.0));
+        SCIP_CALL(SCIPaddCoefLinear(scip_pricer, cons2, probdata->x[source], _k - _n));
         SCIP_CALL(SCIPaddCons(scip_pricer, cons2));
         SCIP_CALL(SCIPreleaseCons(scip_pricer, &cons2));
         
         SCIP_CONS* cons3;
         SCIP_CALL(SCIPcreateConsLinear(scip_pricer, & cons3, "third", 0, NULL, NULL, -SCIPinfinity(scip_pricer), 0.0, TRUE, TRUE, TRUE, TRUE, TRUE, FALSE, FALSE, FALSE, FALSE, FALSE));
-        SCIP_CALL(SCIPaddCoefLinear(scip_pricer, cons3, e[source][target], 1.0));
-        SCIP_CALL(SCIPaddCoefLinear(scip_pricer, cons3, e[target][source], 1.0));
-        SCIP_CALL(SCIPaddCoefLinear(scip_pricer, cons3, x[target], _k - _n));
+        SCIP_CALL(SCIPaddCoefLinear(scip_pricer, cons3, probdata->e[source][target], 1.0));
+        SCIP_CALL(SCIPaddCoefLinear(scip_pricer, cons3, probdata->e[target][source], 1.0));
+        SCIP_CALL(SCIPaddCoefLinear(scip_pricer, cons3, probdata->x[target], _k - _n));
         SCIP_CALL(SCIPaddCons(scip_pricer, cons3));
         SCIP_CALL(SCIPreleaseCons(scip_pricer, &cons3));
     }
@@ -189,13 +212,13 @@ SCIP_RETCODE ObjPricerLinFit::setupConnectivityCons()
             assert(source == *p.first);
             auto target = boost::target(*q.first, *g);
             
-            SCIP_CALL(SCIPaddCoefLinear(scip_pricer, cons4, e[source][target], 1.0));
-            SCIP_CALL(SCIPaddCoefLinear(scip_pricer, cons5, e[target][source], 1.0));
+            SCIP_CALL(SCIPaddCoefLinear(scip_pricer, cons4, probdata->e[source][target], 1.0));
+            SCIP_CALL(SCIPaddCoefLinear(scip_pricer, cons5, probdata->e[target][source], 1.0));
         }
-        SCIP_CALL(SCIPaddCoefLinear(scip_pricer, cons4, x[*p.first], -_n + _k));
+        SCIP_CALL(SCIPaddCoefLinear(scip_pricer, cons4, probdata->x[*p.first], -_n + _k));
         SCIP_CALL(SCIPaddCons(scip_pricer, cons4));
         SCIP_CALL(SCIPreleaseCons(scip_pricer, &cons4));
-        SCIP_CALL(SCIPaddCoefLinear(scip_pricer, cons5, x[*p.first], -_n + _k));
+        SCIP_CALL(SCIPaddCoefLinear(scip_pricer, cons5, probdata->x[*p.first], -_n + _k));
         SCIP_CALL(SCIPaddCons(scip_pricer, cons5));
         SCIP_CALL(SCIPreleaseCons(scip_pricer, &cons5));
     } */
@@ -205,22 +228,24 @@ SCIP_RETCODE ObjPricerLinFit::setupConnectivityCons()
 
 SCIP_DECL_PRICERREDCOST(ObjPricerLinFit::scip_redcost)
 {
-    for (auto s = vertices(*g); s.first != s.second; ++s.first)
+    SCIP_Real lambda = SCIPgetDualsolLinear(scip, _num_partitions_cons);
+    
+    for (size_t i = 0; i < _T.size(); ++i)
     {
-        SCIP_Real mu_s = SCIPgetDualsolLinear(scip, _partitioning_cons[*s.first]);
-        SCIP_CALL(SCIPfreeTransform(scip_pricer)); // reset transformation and solution data and SCIP stage
-        SCIP_CALL(SCIPchgVarObj(scip_pricer, x[*s.first], -mu_s));
-    }
-    for (auto t : _T)
-    {
-        SCIP_CALL(SCIPfreeTransform(scip_pricer)); // reset transformation and solution data and SCIP stage
-        addRemainingConnectivityCons(t);
-        SCIP_CALL(SCIPsolve(scip_pricer));
-        SCIP_SOL* sol = SCIPgetBestSol(scip_pricer);
-        SCIP_Real lambda = SCIPgetDualsolLinear(scip, _num_partitions_cons);
-        if (SCIPisNegative(scip, SCIPgetSolOrigObj(scip_pricer, sol) - lambda))
+        auto probdata = (PricerData*) SCIPgetObjProbData(scip_pricers[i]);
+
+        SCIP_CALL(SCIPfreeTransform(scip_pricers[i])); // reset transformation and solution data and SCIP stage
+        for (auto s = vertices(*g); s.first != s.second; ++s.first)
         {
-            SCIP_CALL(addPartitionVar(scip, sol));
+            SCIP_Real mu_s = SCIPgetDualsolLinear(scip, _partitioning_cons[*s.first]);
+            SCIP_CALL(SCIPchgVarObj(scip_pricers[i], probdata->x[*s.first], -mu_s));
+        }
+        
+        SCIP_CALL(SCIPsolve(scip_pricers[i]));
+        SCIP_SOL* sol = SCIPgetBestSol(scip_pricers[i]);
+        if (SCIPisNegative(scip, SCIPgetSolOrigObj(scip_pricers[i], sol) - lambda))
+        {
+            SCIP_CALL(addPartitionVar(scip, scip_pricers[i], sol));
         }
     }
     
@@ -229,95 +254,25 @@ SCIP_DECL_PRICERREDCOST(ObjPricerLinFit::scip_redcost)
     return SCIP_OKAY;
 }
 
-SCIP_RETCODE ObjPricerLinFit::addRemainingConnectivityCons(Graph::vertex_descriptor t)
+SCIP_RETCODE ObjPricerLinFit::addPartitionVar(SCIP* scip, SCIP* scip_pricer, SCIP_SOL* sol)
 {
-    for (auto cons : connectivity_cons)
-    {
-        SCIP_CALL(SCIPdelCons(scip_pricer, cons));
-        SCIP_CALL(SCIPreleaseCons(scip_pricer, &cons));
-    }
-    connectivity_cons.clear();
-    
-    for (auto s : _T)
-    {
-        SCIP_CONS* cons1;
-        if (s == t)
-        {
-            SCIP_CALL(SCIPcreateConsLinear(scip_pricer, & cons1, "first", 0, NULL, NULL, -1.0, -1.0, TRUE, TRUE, TRUE, TRUE, TRUE, FALSE, FALSE, FALSE, FALSE, FALSE));
-        }
-        else
-        {
-            SCIP_CALL(SCIPcreateConsLinear(scip_pricer, & cons1, "first", 0, NULL, NULL, 0.0, 0.0, TRUE, TRUE, TRUE, TRUE, TRUE, FALSE, FALSE, FALSE, FALSE, FALSE));
-        }
-        
-        for (auto q = out_edges(s, *g); q.first != q.second; ++q.first)
-        {
-            auto source = boost::source(*q.first, *g);
-            assert(source == s);
-            auto target = boost::target(*q.first, *g);
-            SCIP_CALL(SCIPaddCoefLinear(scip_pricer, cons1, e[source][target], 1.0));
-            SCIP_CALL(SCIPaddCoefLinear(scip_pricer, cons1, e[target][source], -1.0));
-        }
-        
-        if (s == t)
-        {
-            for (auto q = vertices(*g); q.first != q.second; ++q.first)
-            {
-                SCIP_CALL(SCIPaddCoefLinear(scip_pricer, cons1, x[*q.first], -1.0));
-            }
-        }
-        else
-        {
-            SCIP_CALL(SCIPaddCoefLinear(scip_pricer, cons1, x[s], 1.0));
-        }
-        SCIP_CALL(SCIPaddCons(scip_pricer, cons1));
-        connectivity_cons.push_back(cons1);
-    }
-    
-    return SCIP_OKAY;
-}
+    auto probdata = (PricerData*) SCIPgetObjProbData(scip_pricer);
 
-SCIP_RETCODE ObjPricerLinFit::addPartitionVar(SCIP* scip, SCIP_SOL* sol)
-{
     SCIP_Real gamma_P = 0.0;
     for(auto s = vertices(*g); s.first != s.second; ++s.first)
     {
-        gamma_P += SCIPgetSolVal(scip_pricer, sol, delta[*s.first]);
+        gamma_P += SCIPgetSolVal(scip_pricer, sol, probdata->delta[*s.first]);
     }
     
     std::vector<Graph::vertex_descriptor> superpixels;
     for (auto s = vertices(*g); s.first != s.second; ++s.first)
     {
-        if (SCIPisZero(scip_pricer, SCIPgetSolVal(scip_pricer, sol, x[*s.first]) - 1.0))
+        if (SCIPisZero(scip_pricer, SCIPgetSolVal(scip_pricer, sol, probdata->x[*s.first]) - 1.0))
         {
             superpixels.push_back(*s.first);
         }
     }
     auto vardata = new ObjVardataSegment(superpixels);
-    
-    /* DEBUG */
-    // print values of the flow variables
-    std::set<Graph::vertex_descriptor> superpixels_(superpixels.begin(), superpixels.end());
-    if (superpixels_ == std::set<Graph::vertex_descriptor>{1,6,7,9,11})
-    {
-        for (auto s = vertices(*g); s.first != s.second; ++s.first)
-        {
-            std::cout << "x_" << *s.first << "\t";
-            std::cout << SCIPgetSolVal(scip_pricer, sol, x[*s.first]) << std::endl;
-        }
-        std::cout << std::endl;
-        for (auto p = edges(*g); p.first != p.second; ++p.first)
-        {
-            auto source = boost::source(*p.first, *g);
-            auto target = boost::target(*p.first, *g);
-            std::cout << "e_" << source << "," << target << "\t";
-            std::cout << SCIPgetSolVal(scip_pricer, sol, e[source][target]) << std::endl;
-            std::cout << "e_" << target << "," << source << "\t";
-            std::cout << SCIPgetSolVal(scip_pricer, sol, e[target][source]) << std::endl;
-        }
-        std::cin.ignore();
-    }
-    /* DEBUG */
     
     SCIP_VAR* x_P;
     SCIP_CALL(SCIPcreateObjVar(scip, & x_P, "x_P", 0.0, 1.0, gamma_P, SCIP_VARTYPE_BINARY, TRUE, FALSE, vardata, TRUE));
@@ -326,7 +281,7 @@ SCIP_RETCODE ObjPricerLinFit::addPartitionVar(SCIP* scip, SCIP_SOL* sol)
     // add coefficients to constraints (of the master problem)
     for (auto s = vertices(*g); s.first != s.second; ++s.first)
     {
-        if (SCIPisZero(scip_pricer, SCIPgetSolVal(scip_pricer, sol, x[*s.first]) - 1.0))
+        if (SCIPisZero(scip_pricer, SCIPgetSolVal(scip_pricer, sol, probdata->x[*s.first]) - 1.0))
         {
             SCIP_CALL(SCIPaddCoefLinear(scip, _partitioning_cons[*s.first], x_P, 1.0));
         }
