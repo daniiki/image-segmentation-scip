@@ -5,6 +5,7 @@
 #include "graph.h"
 #include <algorithm>
 #include <iostream>
+#include <cmath>
 
 #include "pricer.h"
 #include "vardata.h"
@@ -204,15 +205,20 @@ SCIP_DECL_PRICERREDCOST(ObjPricerLinFit::scip_redcost)
         {
             auto probdata = (PricerData*) SCIPgetObjProbData(scip_pricers[i]);
 
-            SCIP_CALL(SCIPfreeTransform(scip_pricers[i])); // reset transformation and solution data and SCIP stage
+            SCIP_CALL(SCIPfreeTransform(scip_pricers[i])); // reset transformation, solution data and SCIP stage
             for (auto s = vertices(*g); s.first != s.second; ++s.first)
             {
                 SCIP_Real mu_s = SCIPgetDualsolLinear(scip, _partitioning_cons[*s.first]);
-                SCIP_CALL(SCIPchgVarObj(scip_pricers[i], probdata->x[*s.first], -mu_s + fabs((*g)[_T[i]].color - (*g)[*s.first].color)));
+                //std::cout << "mu_" << *s.first << ": " << mu_s << std::endl;
+                //std::cout << (*g)[*s.first].color << std::endl;
+                //std::cout << std::abs((*g)[_T[i]].color - (*g)[*s.first].color) << std::endl;
+                SCIP_CALL(SCIPchgVarObj(scip_pricers[i], probdata->x[*s.first], -mu_s + std::abs((*g)[_T[i]].color - (*g)[*s.first].color)));
             }
             
             SCIP_CALL(SCIPsolve(scip_pricers[i]));
             SCIP_SOL* sol = SCIPgetBestSol(scip_pricers[i]);
+            //std::cout << SCIPgetSolOrigObj(scip_pricers[i], sol) << std::endl;
+            //std::cout << lambda << std::endl;
             if (SCIPisNegative(scip, SCIPgetSolOrigObj(scip_pricers[i], sol) - lambda))
             {
                 SCIP_CALL(addPartitionVarFromPricerSCIP(scip, scip_pricers[i], sol, _T[i]));
@@ -237,15 +243,15 @@ SCIP_Real ObjPricerLinFit::heuristic(SCIP* scip, Graph::vertex_descriptor t, std
     {
         Graph::vertex_descriptor s = to_examine.back();
         to_examine.pop_back();
-        for (auto p = adjacent_vertices(s, *g); p.first != p.second; p.first++)
+        for (auto p = adjacent_vertices(s, *g); p.first != p.second; ++p.first)
         {
             SCIP_Real mu_s = SCIPgetDualsolLinear(scip, _partitioning_cons[*p.first]);
-            if (SCIPisNegative(scip, -mu_s + fabs(fitting_value - (*g)[*p.first].color)))
+            if (SCIPisNegative(scip, -mu_s + std::abs(fitting_value - (*g)[*p.first].color)))
             {
                 partition.push_back(*p.first);
                 to_examine.push_back(*p.first);
-                objective_value += -mu_s + fabs(fitting_value - (*g)[*p.first].color);
-                fitting_error += fabs(fitting_value - (*g)[*p.first].color);
+                objective_value += -mu_s + std::abs(fitting_value - (*g)[*p.first].color);
+                fitting_error += std::abs(fitting_value - (*g)[*p.first].color);
             }
         }
     }
@@ -259,7 +265,7 @@ SCIP_RETCODE ObjPricerLinFit::addPartitionVarFromPricerSCIP(SCIP* scip, SCIP* sc
     SCIP_Real gamma_P = 0.0;
     for(auto s = vertices(*g); s.first != s.second; ++s.first)
     {
-        gamma_P += fabs((*g)[t].color - (*g)[*s.first].color);
+        gamma_P += std::abs((*g)[t].color - (*g)[*s.first].color);
     }
 
     std::vector<Graph::vertex_descriptor> superpixels;
@@ -270,11 +276,11 @@ SCIP_RETCODE ObjPricerLinFit::addPartitionVarFromPricerSCIP(SCIP* scip, SCIP* sc
             superpixels.push_back(*s.first);
         }
     }
-    //std::cout << "pricer successful: " << superpixels.size() << std::endl;
+    std::cout << "pricer successful: " << superpixels.size() << std::endl;
     SCIP_CALL(addPartitionVar(scip, superpixels, gamma_P));
     return SCIP_OKAY;
 }
-    
+
 SCIP_RETCODE ObjPricerLinFit::addPartitionVar(SCIP* scip, std::vector<Graph::vertex_descriptor> superpixels, SCIP_Real gamma_P)
 {
     auto vardata = new ObjVardataSegment(superpixels);

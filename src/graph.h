@@ -2,10 +2,11 @@
 #define GRAPH_H
 
 #include <boost/graph/adjacency_list.hpp>
+#include <scip/scip.h>
 
 struct Superpixel
 {
-    unsigned int color;
+    SCIP_Real color;
 };
 
 // setS disallows parallel edges
