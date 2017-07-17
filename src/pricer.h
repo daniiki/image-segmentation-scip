@@ -10,7 +10,7 @@ public:
 
     SCIP_DECL_PRICERINIT(scip_init); // set up scip_pricer
 
-    SCIP_RETCODE setupVars(SCIP* scip_pricer);
+    SCIP_RETCODE setupVars(SCIP* scip_pricer, Graph::vertex_descriptor t);
 
     SCIP_RETCODE setupConnectivityCons(SCIP* scip_pricer, Graph::vertex_descriptor t);
 

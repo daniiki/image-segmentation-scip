@@ -36,6 +36,8 @@ SCIP_RETCODE master_problem(Graph g, int k, std::vector<Graph::vertex_descriptor
     SCIP* scip;
     SCIP_CALL(SCIPcreate(& scip));
     SCIP_CALL(SCIPincludeDefaultPlugins(scip));
+    SCIP_CALL(SCIPsetIntParam(scip, "display/verblevel", 5));
+    SCIP_CALL(SCIPsetIntParam(scip, "presolving/maxrestarts", 0)); // see Known Bugs at http://scip.zib.de/#contact
     
     //create master problem
     SCIP_CALL(SCIPcreateProb(scip, "master_problem", NULL, NULL, NULL, NULL, NULL, NULL, NULL));
@@ -47,6 +49,7 @@ SCIP_RETCODE master_problem(Graph g, int k, std::vector<Graph::vertex_descriptor
     {
         SCIP_VAR* var;
         SCIP_CALL(SCIPcreateVar(scip, & var, "x_P", 0.0, 1.0, gamma(g, partition), SCIP_VARTYPE_BINARY, TRUE, FALSE, NULL, NULL, NULL, NULL, NULL));
+        SCIP_CALL(SCIPchgVarUbLazy(scip, var, 1.0));
         SCIP_CALL(SCIPaddVar(scip, var));
         vars.push_back(var);
     }
@@ -126,7 +129,7 @@ SCIP_RETCODE master_problem(Graph g, int k, std::vector<Graph::vertex_descriptor
 
 int main()
 {
-    Image image("input3.png", 50);
+    Image image("input.png", 100);
     Graph* g = image.graph();
     int n = num_vertices(*g);
     int k = 5;
