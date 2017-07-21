@@ -262,6 +262,7 @@ SCIP_Real ObjPricerLinFit::heuristic(SCIP* scip, Graph::vertex_descriptor t, std
 SCIP_RETCODE ObjPricerLinFit::addPartitionVarFromPricerSCIP(SCIP* scip, SCIP* scip_pricer, SCIP_SOL* sol, Graph::vertex_descriptor t)
 {
     auto probdata = (PricerData*) SCIPgetObjProbData(scip_pricer);
+    SCIP_Real lambda = SCIPgetDualsolLinear(scip, _num_partitions_cons);
 
     std::vector<Graph::vertex_descriptor> superpixels;
     SCIP_Real gamma_P = 0.0;
@@ -274,7 +275,7 @@ SCIP_RETCODE ObjPricerLinFit::addPartitionVarFromPricerSCIP(SCIP* scip, SCIP* sc
         }
     }
     std::cout << "pricer successful: " << superpixels.size() << std::endl;
-    std::cout << "reduced costs: " <<  SCIPgetSolOrigObj(scip_pricers[i], sol) - lambda << std::endl;
+    std::cout << "reduced costs: " <<  SCIPgetSolOrigObj(scip_pricer, sol) - lambda << std::endl;
     SCIP_CALL(addPartitionVar(scip, superpixels, gamma_P));
     return SCIP_OKAY;
 }

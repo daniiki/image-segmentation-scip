@@ -101,3 +101,24 @@ Graph* Image::graph()
     }
     return g;
 }
+
+void Image::writeSegments(std::vector<Graph::vertex_descriptor> T, std::vector<std::vector<Graph::vertex_descriptor>> segments, Graph& g)
+{
+    png::image<png::gray_pixel> image(width, height);
+    for (png::uint_32 x = 0; x < width; ++x)
+    {
+        for (png::uint_32 y = 0; y < height; ++y)
+        {
+            auto superpixel = segmentation[x + y*width];
+	    auto segment = segments.begin();
+	    while (std::find(segment->begin(), segment->end(), superpixel) == segment->end())
+                ++segment;
+            auto t = T.begin();
+	    while (std::find(segment->begin(), segment->end(), *t) == segment->end())
+		++t;
+	    image[y][x] = g[*t].color;
+	}
+    }
+    std::cout << "write segments.png" << std::endl;
+    image.write("segments.png");
+}

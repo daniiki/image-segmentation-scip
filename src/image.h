@@ -7,6 +7,8 @@ public:
     Image(std::string filename, int n);
     
     Graph* graph();
+
+    void writeSegments(std::vector<Graph::vertex_descriptor> T, std::vector<std::vector<Graph::vertex_descriptor>> segments, Graph& g);
     
 private:
     unsigned int width;

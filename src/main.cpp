@@ -31,7 +31,7 @@ double gamma(Graph g, std::set<Graph::vertex_descriptor> partition)
     return gamma;
 }
 
-SCIP_RETCODE master_problem(Graph g, int k, std::vector<Graph::vertex_descriptor> T, std::vector<std::set<Graph::vertex_descriptor>> inital_partitions)
+SCIP_RETCODE master_problem(Graph g, int k, std::vector<Graph::vertex_descriptor> T, std::vector<std::set<Graph::vertex_descriptor>> inital_partitions, std::vector<std::vector<Graph::vertex_descriptor>>& partitions)
 {
     SCIP* scip;
     SCIP_CALL(SCIPcreate(& scip));
@@ -109,27 +109,23 @@ SCIP_RETCODE master_problem(Graph g, int k, std::vector<Graph::vertex_descriptor
     SCIP_CALL(SCIPsolve(scip));
     SCIP_SOL* sol = SCIPgetBestSol(scip);
 
-    // print selected segments
+    // return selected segments
     SCIP_VAR** variables = SCIPgetVars(scip);
     for (int i = 0; i < SCIPgetNVars(scip); ++i)
     {
         if (SCIPisZero(scip, SCIPgetSolVal(scip, sol, variables[i]) - 1.0))
         {
-            auto vardata = (ObjVardataSegment*) SCIPgetObjVardata(scip, variables[i]);
-            for (Graph::vertex_descriptor s : vardata->getSuperpixels())
-            {
-                std::cout << s << " ";
-            }
-            std::cout << std::endl;
+	    auto vardata = (ObjVardataSegment*) SCIPgetObjVardata(scip, variables[i]);
+            partitions.push_back(vardata->getSuperpixels());
         }
     }
     
-    return SCIP_OKAY;
+    return SCIP_OKAY;;
 }
 
 int main()
 {
-    Image image("input.png", 100);
+    Image image("input.png", 20);
     Graph* g = image.graph();
     int n = num_vertices(*g);
     int k = 5;
@@ -152,6 +148,8 @@ int main()
         inital_partitions[k-1].insert(j);
     }
 
-    master_problem(*g, k, T, inital_partitions);
+    std::vector<std::vector<Graph::vertex_descriptor>> partitions;
+    SCIP_CALL(master_problem(*g, k, T, inital_partitions, partitions));
+    image.writeSegments(T, partitions, *g);
     return 0;
 }
