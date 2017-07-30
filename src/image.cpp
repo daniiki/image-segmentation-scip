@@ -110,14 +110,14 @@ void Image::writeSegments(std::vector<Graph::vertex_descriptor> T, std::vector<s
         for (png::uint_32 y = 0; y < height; ++y)
         {
             auto superpixel = segmentation[x + y*width];
-	    auto segment = segments.begin();
-	    while (std::find(segment->begin(), segment->end(), superpixel) == segment->end())
+            auto segment = segments.begin();
+            while (std::find(segment->begin(), segment->end(), superpixel) == segment->end())
                 ++segment;
             auto t = T.begin();
-	    while (std::find(segment->begin(), segment->end(), *t) == segment->end())
-		++t;
-	    image[y][x] = g[*t].color;
-	}
+            while (std::find(segment->begin(), segment->end(), *t) == segment->end())
+                ++t;
+            image[y][x] = g[*t].color;
+        }
     }
     std::cout << "write segments.png" << std::endl;
     image.write("segments.png");
