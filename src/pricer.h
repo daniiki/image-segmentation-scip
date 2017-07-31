@@ -12,8 +12,6 @@ public:
 
     SCIP_RETCODE setupVars(SCIP* scip_pricer, Graph::vertex_descriptor t);
 
-    SCIP_RETCODE setupConnectivityCons(SCIP* scip_pricer, Graph::vertex_descriptor t);
-
     virtual SCIP_DECL_PRICERREDCOST(scip_redcost);
     
     SCIP_Real heuristic(SCIP* scip, Graph::vertex_descriptor t, std::vector<Graph::vertex_descriptor>& partition, SCIP_Real& fitting_error);

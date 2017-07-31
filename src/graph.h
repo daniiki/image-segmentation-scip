@@ -2,7 +2,10 @@
 #define GRAPH_H
 
 #include <boost/graph/adjacency_list.hpp>
+#include <boost/graph/subgraph.hpp>
 #include <scip/scip.h>
+
+using namespace boost;
 
 struct Superpixel
 {
@@ -10,6 +13,11 @@ struct Superpixel
 };
 
 // setS disallows parallel edges
-typedef boost::adjacency_list<boost::setS, boost::vecS, boost::undirectedS, Superpixel> Graph;
+typedef subgraph<adjacency_list<
+        setS, vecS, undirectedS,
+        Superpixel,
+        property<edge_index_t, size_t>
+    >>
+    Graph;
  
 #endif

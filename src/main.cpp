@@ -126,8 +126,8 @@ SCIP_RETCODE master_problem(Graph g, int k, std::vector<Graph::vertex_descriptor
 int main()
 {
     Image image("input.png", 20);
-    Graph* g = image.graph();
-    int n = num_vertices(*g);
+    Graph g = image.graph();
+    int n = num_vertices(g);
     int k = 5;
     int m = n / k;
     std::vector<Graph::vertex_descriptor> T(k);
@@ -149,7 +149,7 @@ int main()
     }
 
     std::vector<std::vector<Graph::vertex_descriptor>> partitions;
-    SCIP_CALL(master_problem(*g, k, T, inital_partitions, partitions));
-    image.writeSegments(T, partitions, *g);
+    SCIP_CALL(master_problem(g, k, T, inital_partitions, partitions));
+    image.writeSegments(T, partitions, g);
     return 0;
 }

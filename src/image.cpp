@@ -70,12 +70,12 @@ Image::Image(std::string filename, int n)
     pngimage.write("superpixels.png");
 }
 
-Graph* Image::graph()
+Graph Image::graph()
 {
-    auto g = new Graph(superpixelcount);
-    for (unsigned int i = 0; i < superpixelcount; ++i)
+    Graph g(superpixelcount);
+    for (auto p = vertices(g); p.first != p.second; ++p.first)
     {
-        (*g)[i].color = avgcolor[i];
+        g[*p.first].color = avgcolor[*p.first];
     }
     // add edges
     for (png::uint_32 x = 0; x < width; ++x)
@@ -89,13 +89,13 @@ Graph* Image::graph()
                 && segmentation[current] != segmentation[right])
             {
                 // add edge to the superpixel on the right
-                add_edge(segmentation[current], segmentation[right], *g);
+                add_edge(segmentation[current], segmentation[right], g);
             }
             if (y + 1 < height
                 && segmentation[current] != segmentation[below])
             {
                 // add edge to the superpixel below
-                add_edge(segmentation[current], segmentation[below], *g);
+                add_edge(segmentation[current], segmentation[below], g);
             }
         }
     }

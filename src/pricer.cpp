@@ -48,7 +48,6 @@ SCIP_DECL_PRICERINIT(ObjPricerLinFit::scip_init)
         SCIP_CALL(SCIPsetObjsense(scip_pricers[i], SCIP_OBJSENSE_MINIMIZE));
     
         SCIP_CALL(setupVars(scip_pricers[i], _T[i]));
-        SCIP_CALL(setupConnectivityCons(scip_pricers[i], _T[i]));
     }
     
     return SCIP_OKAY;
@@ -63,7 +62,11 @@ SCIP_RETCODE ObjPricerLinFit::setupVars(SCIP* scip_pricer, Graph::vertex_descrip
         SCIP_Real mu_s = 0.0; // random value, is set to the correct one at each iteration
         SCIP_VAR* x_s;
         SCIP_CALL(SCIPcreateVar(scip_pricer, & x_s, "x_s", 0.0, 1.0, -mu_s, SCIP_VARTYPE_BINARY, TRUE, FALSE, NULL, NULL, NULL, NULL, NULL));
-        if (std::find(_T.begin(), _T.end(), *p.first) != _T.end() && *p.first != t)
+        if (*p.first == t)
+        {
+            SCIP_CALL(SCIPchgVarLb(scip_pricer, x_s, 1.0));
+        }
+        else if (std::find(_T.begin(), _T.end(), *p.first) != _T.end())
         {
             // if a superpixel s is in T\{t}, then x_s must be 0
             SCIP_CALL(SCIPchgVarUb(scip_pricer, x_s, 0.0));
