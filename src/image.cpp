@@ -77,6 +77,17 @@ Graph Image::graph()
     {
         g[*p.first].color = avgcolor[*p.first];
     }
+
+    // store the corresponding pixels for each superpixel
+    for (png::uint_32 x = 0; x < width; ++x)
+    {
+        for (png::uint_32 y = 0; y < height; ++y)
+        {
+            Graph::vertex_descriptor superpixel = segmentation[x + y * width];
+            g[superpixel].pixels.push_back(Pixel{x, y});
+        }
+    }
+
     // add edges
     for (png::uint_32 x = 0; x < width; ++x)
     {
@@ -89,13 +100,17 @@ Graph Image::graph()
                 && segmentation[current] != segmentation[right])
             {
                 // add edge to the superpixel on the right
-                add_edge(segmentation[current], segmentation[right], g);
+                auto edge = add_edge(segmentation[current], segmentation[right], g); // returns a pair<edge_descriptor, bool>
+                auto weight = boost::get(boost::edge_weight, g, edge.first);
+                boost::put(boost::edge_weight, g, edge.first, weight + 1);
             }
             if (y + 1 < height
                 && segmentation[current] != segmentation[below])
             {
                 // add edge to the superpixel below
-                add_edge(segmentation[current], segmentation[below], g);
+                auto edge = add_edge(segmentation[current], segmentation[below], g);
+                auto weight = boost::get(boost::edge_weight, g, edge.first);
+                boost::put(boost::edge_weight, g, edge.first, weight + 1);
             }
         }
     }
