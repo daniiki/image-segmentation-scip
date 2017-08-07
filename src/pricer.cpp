@@ -9,6 +9,7 @@
 
 #include "pricer.h"
 #include "vardata.h"
+#include "connectivity_cons.h"
 
 using namespace scip;
 
@@ -38,16 +39,26 @@ SCIP_DECL_PRICERINIT(ObjPricerLinFit::scip_init)
     scip_pricers.resize(_T.size());
     for (size_t i = 0; i < _T.size(); ++i)
     {
+        auto probdata = new PricerData();
+
         SCIP_CALL(SCIPcreate(&scip_pricers[i]));
+        SCIP_CALL(SCIPincludeObjConshdlr(scip_pricers[i],
+            new ConnectivityCons(scip_pricers[i], *g, _T, _T[i], probdata->x),
+            TRUE));
         SCIP_CALL(SCIPincludeDefaultPlugins(scip_pricers[i]));
         SCIPsetMessagehdlrQuiet(scip_pricers[i], TRUE);
 
         // create pricing problem
-        auto probdata = new PricerData();
         SCIP_CALL(SCIPcreateObjProb(scip_pricers[i], "pricing_problem", probdata, TRUE));
         SCIP_CALL(SCIPsetObjsense(scip_pricers[i], SCIP_OBJSENSE_MINIMIZE));
     
         SCIP_CALL(setupVars(scip_pricers[i], _T[i]));
+
+        SCIP_CONS* cons;
+        SCIP_CALL(SCIPcreateConsConnectivity(scip_pricers[i], &cons, "connectivity",
+            FALSE, TRUE, TRUE, TRUE, TRUE, FALSE, FALSE, FALSE, TRUE));
+        SCIP_CALL(SCIPaddCons(scip_pricers[i], cons));
+        SCIP_CALL(SCIPreleaseCons(scip_pricers[i], &cons));
     }
     
     return SCIP_OKAY;

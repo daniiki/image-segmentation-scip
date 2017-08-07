@@ -15,6 +15,17 @@ ConnectivityCons::ConnectivityCons(
     g(g_), T(T_), t(t_), x(x_)
 {}
 
+SCIP_DECL_CONSTRANS(ConnectivityCons::scip_trans)
+{
+    SCIP_CALL(SCIPcreateCons(scip, targetcons, SCIPconsGetName(sourcecons), conshdlr, NULL,
+        SCIPconsIsInitial(sourcecons), SCIPconsIsSeparated(sourcecons), SCIPconsIsEnforced(sourcecons),
+        SCIPconsIsChecked(sourcecons), SCIPconsIsPropagated(sourcecons),  SCIPconsIsLocal(sourcecons),
+        SCIPconsIsModifiable(sourcecons), SCIPconsIsDynamic(sourcecons), SCIPconsIsRemovable(sourcecons),
+        SCIPconsIsStickingAtNode(sourcecons)));
+
+    return SCIP_OKAY;
+}
+
 size_t ConnectivityCons::findComponents(
     SCIP* scip,
     SCIP_SOL* sol,
@@ -133,4 +144,37 @@ SCIP_DECL_CONSLOCK(ConnectivityCons::scip_lock)
             SCIP_CALL(SCIPaddVarLocks(scip, x[*p.first], nlockspos, nlocksneg));
         }
     }
+}
+
+SCIP_RETCODE SCIPcreateConsConnectivity(
+    SCIP* scip,
+    SCIP_CONS** cons,
+    const char* name,
+    SCIP_Bool             initial,            /**< should the LP relaxation of constraint be in the initial LP? */
+    SCIP_Bool             separate,           /**< should the constraint be separated during LP processing? */
+    SCIP_Bool             enforce,            /**< should the constraint be enforced during node processing? */
+    SCIP_Bool             check,              /**< should the constraint be checked for feasibility? */
+    SCIP_Bool             propagate,          /**< should the constraint be propagated during node processing? */
+    SCIP_Bool             local,              /**< is constraint only valid locally? */
+    SCIP_Bool             modifiable,         /**< is constraint modifiable (subject to column generation)? */
+    SCIP_Bool             dynamic,            /**< is constraint dynamic? */
+    SCIP_Bool             removable           /**< should the constraint be removed from the LP due to aging or cleanup? */
+    )
+{
+    SCIP_CONSHDLR* conshdlr;
+    SCIP_CONSDATA* consdata = NULL;
+
+    /* find the connectiviity constraint handler */
+    conshdlr = SCIPfindConshdlr(scip, "connectivity");
+    if (conshdlr == NULL)
+    {
+        SCIPerrorMessage("connectivity constraint handler not found\n");
+        return SCIP_PLUGINNOTFOUND;
+    }
+
+    /* create constraint */
+    SCIP_CALL(SCIPcreateCons(scip, cons, name, conshdlr, consdata, initial, separate, enforce, check, propagate,
+        local, modifiable, dynamic, removable, FALSE));
+
+   return SCIP_OKAY;
 }
