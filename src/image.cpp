@@ -6,7 +6,7 @@
 #include "image.h"
 
 
-Image::Image(std::string filename, int n)
+Image::Image(std::string filename_, int n) : filename(filename_)
 {
     png::image<png::gray_pixel> pngimage(filename);
     width = pngimage.get_width();
@@ -64,7 +64,31 @@ Image::Image(std::string filename, int n)
     {
         for (png::uint_32 y = 0; y < pngimage.get_height(); ++y)
         {
-            pngimage[y][x] = avgcolor[segmentation[x + y * pngimage.get_width()]];
+            auto current = x + y * width;
+            auto right = x + 1 + y * width;
+            auto left = x - 1 + y * width;
+            auto below = x + (y + 1) * width;
+            auto above = x + (y - 1) * width;
+            if (x + 1 < width && segmentation[current] != segmentation[right])
+            {
+                pngimage[y][x] = 0; // set pixel at the border to black
+            }
+            else if (x >= 1 && segmentation[current] != segmentation[left])
+            {
+                pngimage[y][x] = 0; // set pixel at the border to black
+            }
+            else if (y + 1 < height && segmentation[current] != segmentation[below])
+            {
+                pngimage[y][x] = 0; // set pixel at the border to black
+            }
+            else if (y  >= 1 && segmentation[current] != segmentation[above])
+            {
+                pngimage[y][x] = 0; // set pixel at the border to black
+            }
+            else
+            {
+                pngimage[y][x] = avgcolor[segmentation[x + y * pngimage.get_width()]];
+            }
         }
     }
     pngimage.write("superpixels.png");
@@ -119,21 +143,36 @@ Graph Image::graph()
 
 void Image::writeSegments(std::vector<Graph::vertex_descriptor> T, std::vector<std::vector<Graph::vertex_descriptor>> segments, Graph& g)
 {
-    png::image<png::gray_pixel> image(width, height);
+    std::vector<std::vector<size_t>> pixeltosegment(height);
+    for (size_t i = 0; i < pixeltosegment.size(); ++i)
+        pixeltosegment[i].resize(width);
     for (png::uint_32 x = 0; x < width; ++x)
     {
         for (png::uint_32 y = 0; y < height; ++y)
         {
-            auto superpixel = segmentation[x + y*width];
-            auto segment = segments.begin();
-            while (std::find(segment->begin(), segment->end(), superpixel) == segment->end())
+            Graph::vertex_descriptor superpixel = segmentation[x + y*width];
+            size_t segment = 0;
+            while (std::find(segments[segment].begin(), segments[segment].end(), superpixel) == segments[segment].end())
                 ++segment;
-            auto t = T.begin();
-            while (std::find(segment->begin(), segment->end(), *t) == segment->end())
-                ++t;
-            image[y][x] = g[*t].color;
+            pixeltosegment[y][x] = segment;
         }
     }
+    
+    png::image<png::gray_pixel> pngimage(filename);
+    for (png::uint_32 x = 0; x < width; ++x)
+    {
+        for (png::uint_32 y = 0; y < height; ++y)
+        {
+            if ((x > 0 && pixeltosegment[y][x] != pixeltosegment[y][x-1])
+                || (x+1 < width && pixeltosegment[y][x] != pixeltosegment[y][x+1])
+                || (y > 0 && pixeltosegment[y][x] != pixeltosegment[y-1][x])
+                || (y+1 < height && pixeltosegment[y][x] != pixeltosegment[y+1][x]))
+            {
+                pngimage[y][x] = 0; // colour pixel at segment boundary black
+            }
+        }
+    }
+    
     std::cout << "write segments.png" << std::endl;
-    image.write("segments.png");
+    pngimage.write("segments.png");
 }

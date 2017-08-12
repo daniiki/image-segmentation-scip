@@ -20,6 +20,7 @@ private:
     unsigned int superpixelcount;
     uint32_t* segmentation;
     std::vector<double> avgcolor;
+    std::string filename;
 };
 
 #endif
