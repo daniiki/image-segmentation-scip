@@ -7,26 +7,35 @@
 
 using namespace boost;
 
-//typename Graph;
-
+/**
+ * Struct representing a pixel in the imput image
+ */
 struct Pixel
 {
-    uint32_t x;
-    uint32_t y;
+    uint32_t x; ///< x coordinate
+    uint32_t y; ///< y coordinate
 
     Pixel(uint32_t x_, uint32_t y_) : x(x_), y(y_)
     {}
 };
 
+/**
+ * Struct representing a superpixel
+ */
 struct Superpixel
 {
-    SCIP_Real color;
-    std::vector<Pixel> pixels;
+    SCIP_Real color; ///< color of the superpixel, i.e. the average color of all pixels contained in it
+    std::vector<Pixel> pixels; ///< vector of all pixels contained in the superpixel
 };
 
-// setS disallows parallel edges
+/**
+ * The graph type using the [Boost Graph Library](http://www.boost.org/doc/libs/1_64_0/libs/graph/doc/index.html)
+ * This type forbids parallel edges and allows the creation of subgraphs.
+ * Each node is a `Superpixel`, i.e. it has the proberties `color` and `pixels`.
+ */
 typedef subgraph<adjacency_list<
-        setS, vecS, undirectedS,
+        setS, // setS disallows parallel edges
+        vecS, undirectedS,
         Superpixel,
         property<edge_index_t, size_t,
         property<edge_weight_t, size_t>> // edge weight is the number of neighbouring pixels,

@@ -5,14 +5,14 @@
 ConnectivityCons::ConnectivityCons(
     SCIP* scip,
     Graph& g_,
-    std::vector<Graph::vertex_descriptor>& T_,
-    Graph::vertex_descriptor t_,
-    std::vector<SCIP_VAR*>& x_
-    ) : 
+    std::vector<Graph::vertex_descriptor>& master_nodes_,
+    Graph::vertex_descriptor master_node_,
+    std::vector<SCIP_VAR*>& superpixel_vars_
+    ) :
     ObjConshdlr(scip, "connectivity", "Segemnt connectivity constraints",
         1000000, -2000000, -2000000, 1, -1, 1, 0,
         FALSE, FALSE, TRUE, SCIP_PROPTIMING_BEFORELP, SCIP_PRESOLTIMING_FAST),
-    g(g_), T(T_), t(t_), x(x_)
+    g(g_), master_nodes(master_nodes_), master_node(master_node_), superpixel_vars(superpixel_vars_)
 {}
 
 SCIP_DECL_CONSTRANS(ConnectivityCons::scip_trans)
@@ -29,13 +29,13 @@ SCIP_DECL_CONSTRANS(ConnectivityCons::scip_trans)
 size_t ConnectivityCons::findComponents(
     SCIP* scip,
     SCIP_SOL* sol,
-    Graph& subgraph, // subgraph with all superpixels for which x_s is 1
+    Graph& subgraph,
     std::vector<int>& component
     )
 {
     for (auto p = vertices(g); p.first != p.second; ++p.first)
     {
-        if (SCIPisEQ(scip, SCIPgetSolVal(scip, sol, x[*p.first]), 1.0))
+        if (SCIPisEQ(scip, SCIPgetSolVal(scip, sol, superpixel_vars[*p.first]), 1.0))
         {
             add_vertex(*p.first, subgraph);
         }
@@ -57,7 +57,7 @@ SCIP_DECL_CONSENFOLP(ConnectivityCons::scip_enfolp)
     {
         for (int i = 0; i < num_components; i++)
         {
-            if (i == component[t])
+            if (i == component[master_node])
             {
                 continue;
             }
@@ -75,9 +75,9 @@ SCIP_DECL_CONSENFOLP(ConnectivityCons::scip_enfolp)
             for (auto q = out_edges(*p.first, g); q.first != q.second; ++q.first)
             {
                 assert(boost::source(*q.first, g) == *p.first);
-                SCIP_CALL(SCIPaddVarToRow(scip, row, x[boost::target(*q.first, g)], 1.0));
+                SCIP_CALL(SCIPaddVarToRow(scip, row, superpixel_vars[boost::target(*q.first, g)], 1.0));
             }
-            SCIP_CALL(SCIPaddVarToRow(scip, row, x[*p.first], -1.0));
+            SCIP_CALL(SCIPaddVarToRow(scip, row, superpixel_vars[*p.first], -1.0));
             SCIP_CALL(SCIPflushRowExtensions(scip, row));
             if (SCIPisCutEfficacious(scip, NULL, row))
             {
@@ -135,13 +135,13 @@ SCIP_DECL_CONSLOCK(ConnectivityCons::scip_lock)
 {
     for (auto p = vertices(g); p.first != p.second; ++p.first)
     {
-        if (std::find(T.begin(), T.end(), *p.first) == T.end())
+        if (std::find(master_nodes.begin(), master_nodes.end(), *p.first) == master_nodes.end())
         {
-            // The variable x_s affects connectivity iff s is not in T,
-            // since x_t=1 and x_s=0 for s in T\{t} are given
+            // The variable x_s affects connectivity iff s is not in master_nodes,
+            // since x_t=1 and x_s=0 for s in master_nodes\{t} are given
             // Connectivity can only be lost when lowering a variable value,
             // therefore nlockspos, nlockneg
-            SCIP_CALL(SCIPaddVarLocks(scip, x[*p.first], nlockspos, nlocksneg));
+            SCIP_CALL(SCIPaddVarLocks(scip, superpixel_vars[*p.first], nlockspos, nlocksneg));
         }
     }
 }
@@ -150,21 +150,21 @@ SCIP_RETCODE SCIPcreateConsConnectivity(
     SCIP* scip,
     SCIP_CONS** cons,
     const char* name,
-    SCIP_Bool             initial,            /**< should the LP relaxation of constraint be in the initial LP? */
-    SCIP_Bool             separate,           /**< should the constraint be separated during LP processing? */
-    SCIP_Bool             enforce,            /**< should the constraint be enforced during node processing? */
-    SCIP_Bool             check,              /**< should the constraint be checked for feasibility? */
-    SCIP_Bool             propagate,          /**< should the constraint be propagated during node processing? */
-    SCIP_Bool             local,              /**< is constraint only valid locally? */
-    SCIP_Bool             modifiable,         /**< is constraint modifiable (subject to column generation)? */
-    SCIP_Bool             dynamic,            /**< is constraint dynamic? */
-    SCIP_Bool             removable           /**< should the constraint be removed from the LP due to aging or cleanup? */
+    SCIP_Bool initial,
+    SCIP_Bool separate,
+    SCIP_Bool enforce,
+    SCIP_Bool check,
+    SCIP_Bool propagate,
+    SCIP_Bool local,
+    SCIP_Bool modifiable,
+    SCIP_Bool dynamic,
+    SCIP_Bool removable
     )
 {
     SCIP_CONSHDLR* conshdlr;
     SCIP_CONSDATA* consdata = NULL;
 
-    /* find the connectiviity constraint handler */
+    // find the connectiviity constraint handler
     conshdlr = SCIPfindConshdlr(scip, "connectivity");
     if (conshdlr == NULL)
     {
@@ -172,7 +172,7 @@ SCIP_RETCODE SCIPcreateConsConnectivity(
         return SCIP_PLUGINNOTFOUND;
     }
 
-    /* create constraint */
+    // create constraint 
     SCIP_CALL(SCIPcreateCons(scip, cons, name, conshdlr, consdata, initial, separate, enforce, check, propagate,
         local, modifiable, dynamic, removable, FALSE));
 
