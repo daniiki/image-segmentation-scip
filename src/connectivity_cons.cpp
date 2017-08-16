@@ -44,14 +44,19 @@ size_t ConnectivityCons::findComponents(
     return num_components;
 }
 
-SCIP_DECL_CONSENFOLP(ConnectivityCons::scip_enfolp)
+SCIP_RETCODE ConnectivityCons::sepaConnectivity(
+    SCIP* scip,
+    SCIP_CONSHDLR* conshdlr,
+    SCIP_SOL* sol,
+    SCIP_RESULT* result
+    )
 {
     Graph& subgraph = g.create_subgraph();
     std::vector<int> component(num_vertices(g));
-    size_t num_components = findComponents(scip, NULL, subgraph, component);
+    size_t num_components = findComponents(scip, sol, subgraph, component);
     if (num_components == 1)
     {
-        *result = SCIP_FEASIBLE;
+        *result = SCIP_DIDNOTFIND;
     }
     else
     {
@@ -61,23 +66,48 @@ SCIP_DECL_CONSENFOLP(ConnectivityCons::scip_enfolp)
             {
                 continue;
             }
-            auto p = vertices(subgraph);
-            for (; p.first != p.second; ++p.first)
+            
+            std::vector<Graph::vertex_descriptor> superpixels; // all superpixels in the component
+            for (auto p = vertices(subgraph); p.first != p.second; ++p.first)
             {
                 if (component[*p.first] == i)
                 {
-                    break;
+                    superpixels.push_back(*p.first);
                 }
             }
+
+            // add a constraint/row to the problem
             SCIP_ROW* row;
             SCIP_CALL(SCIPcreateEmptyRowCons(scip, &row, conshdlr, "sepa_con", 0.0, SCIPinfinity(scip), FALSE, FALSE, TRUE));
+            //SCIP_CALL(SCIPcreateEmptyRowCons(scip, &row, conshdlr, "sepa_con", -superpixels.size() + 1, SCIPinfinity(scip), FALSE, FALSE, TRUE));
             SCIP_CALL(SCIPcacheRowExtensions(scip, row));
-            for (auto q = out_edges(*p.first, g); q.first != q.second; ++q.first)
+
+            // sum_{all superpixels s surrounding the component} x_s >= ...
+            for (auto s : superpixels)
             {
-                assert(boost::source(*q.first, g) == *p.first);
-                SCIP_CALL(SCIPaddVarToRow(scip, row, superpixel_vars[boost::target(*q.first, g)], 1.0));
+                for (auto q = out_edges(s, g); q.first != q.second; ++q.first)
+                {
+                    assert(boost::source(*q.first, g) == s);
+                    // if the tartget is not in the component
+                    if (std::find(
+                            superpixels.begin(),
+                            superpixels.end(),
+                            boost::target(*q.first, g)
+                        ) == superpixels.end())
+                    {
+                        SCIP_CALL(SCIPaddVarToRow(scip, row, superpixel_vars[boost::target(*q.first, g)], 1.0));
+                    }
+                }
             }
-            SCIP_CALL(SCIPaddVarToRow(scip, row, superpixel_vars[*p.first], -1.0));
+
+            // ... >= x_{a random superpixel in the component}
+            SCIP_CALL(SCIPaddVarToRow(scip, row, superpixel_vars[superpixels[0]], -1.0));
+
+            /*for (auto s : superpixels)
+            {
+                SCIP_CALL(SCIPaddVarToRow(scip, row, superpixel_vars[s], -1.0));
+            }*/
+
             SCIP_CALL(SCIPflushRowExtensions(scip, row));
             if (SCIPisCutEfficacious(scip, NULL, row))
             {
@@ -94,6 +124,34 @@ SCIP_DECL_CONSENFOLP(ConnectivityCons::scip_enfolp)
                 SCIP_CALL(SCIPreleaseRow(scip, &row));
             }
         }
+    }
+    return SCIP_OKAY;
+}
+
+SCIP_DECL_CONSSEPALP(ConnectivityCons::scip_sepalp)
+{
+    SCIP_CALL(sepaConnectivity(scip, conshdlr, NULL, result));
+    return SCIP_OKAY;
+}
+
+SCIP_DECL_CONSSEPASOL(ConnectivityCons::scip_sepasol)
+{
+    SCIP_CALL(sepaConnectivity(scip, conshdlr, sol, result));
+    return SCIP_OKAY;
+}
+
+SCIP_DECL_CONSENFOLP(ConnectivityCons::scip_enfolp)
+{
+    Graph& subgraph = g.create_subgraph();
+    std::vector<int> component(num_vertices(g));
+    size_t num_components = findComponents(scip, NULL, subgraph, component);
+    if (num_components == 1)
+    {
+        *result = SCIP_FEASIBLE;
+    }
+    else
+    {
+        *result = SCIP_INFEASIBLE;
     }
     return SCIP_OKAY;
 }
@@ -141,7 +199,7 @@ SCIP_DECL_CONSLOCK(ConnectivityCons::scip_lock)
             // since x_t=1 and x_s=0 for s in master_nodes\{t} are given
             // Connectivity can only be lost when lowering a variable value,
             // therefore nlockspos, nlockneg
-            SCIP_CALL(SCIPaddVarLocks(scip, superpixel_vars[*p.first], nlockspos, nlocksneg));
+            SCIP_CALL(SCIPaddVarLocks(scip, superpixel_vars[*p.first], nlockspos + nlocksneg, nlockspos + nlocksneg));
         }
     }
 }

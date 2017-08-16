@@ -30,6 +30,10 @@ public:
      */
     virtual SCIP_DECL_CONSTRANS(scip_trans);
     
+    SCIP_DECL_CONSSEPALP(scip_sepalp);
+
+    SCIP_DECL_CONSSEPASOL(scip_sepasol);
+
     /**
      * Constraint enforcing method of constraint handler for LP solutions
      * If the current solution is infeasible, a cutting plane of the following form is added
@@ -63,7 +67,14 @@ private:
         SCIP_SOL* sol, ///< current primal solution or NULL
         Graph& subgraph, ///< subgraph with all superpixels for which \f$x_s = 1\f$
         std::vector<int>& component ///< `component[s]` will be the connected component the superpixel s belongs to
-);
+    );
+
+    SCIP_RETCODE sepaConnectivity(
+        SCIP* scip,
+        SCIP_CONSHDLR* conshdlr,
+        SCIP_SOL* sol,
+        SCIP_RESULT* result
+    );
 
     Graph& g;
     std::vector<Graph::vertex_descriptor>& master_nodes;
