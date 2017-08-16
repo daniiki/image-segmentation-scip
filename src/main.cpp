@@ -2,6 +2,7 @@
 #include <boost/graph/adjacency_list.hpp>
 #include <boost/random/linear_congruential.hpp>
 #include <boost/graph/random.hpp>
+#include <boost/graph/connected_components.hpp>
 #include "pricer.h"
 
 #include <scip/scipdefplugins.h>
@@ -113,14 +114,27 @@ SCIP_RETCODE master_problem(Graph g, int k, std::vector<Graph::vertex_descriptor
     SCIP_VAR** variables = SCIPgetVars(scip);
     for (int i = 0; i < SCIPgetNVars(scip); ++i)
     {
-        if (SCIPisZero(scip, SCIPgetSolVal(scip, sol, variables[i]) - 1.0))
+        if (SCIPisEQ(scip, SCIPgetSolVal(scip, sol, variables[i]), 1.0))
         {
-	    auto vardata = (ObjVardataSegment*) SCIPgetObjVardata(scip, variables[i]);
+            auto vardata = (ObjVardataSegment*) SCIPgetObjVardata(scip, variables[i]);
             partitions.push_back(vardata->getSuperpixels());
         }
     }
+
+    // check if the selected segments are connected
+    for (auto segment : partitions)
+    {
+        Graph& subgraph = g.create_subgraph();
+        std::vector<int> component(num_vertices(g));
+        for (auto superpixel : segment)
+        {
+            add_vertex(superpixel, subgraph);
+        }
+        size_t num_components = connected_components(subgraph, &component[0]);
+        std::cout << "Segment has " << num_components << " connected components." << std::endl;
+    }
     
-    return SCIP_OKAY;;
+    return SCIP_OKAY;
 }
 
 int main()
