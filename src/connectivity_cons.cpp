@@ -125,7 +125,8 @@ SCIP_RETCODE ConnectivityCons::sepaConnectivity(
             SCIP_CALL(SCIPreleaseRow(scip, &row));
         }
     }
-    delete &subgraph;
+    delete &subgraph; // delete subgraph, and thereby free memory
+    g.m_children.clear();
     return SCIP_OKAY;
 }
 
@@ -146,7 +147,8 @@ SCIP_DECL_CONSENFOLP(ConnectivityCons::scip_enfolp)
     Graph& subgraph = g.create_subgraph();
     std::vector<int> component(num_vertices(g));
     size_t num_components = findComponents(scip, NULL, subgraph, component);
-    delete &subgraph;
+    delete &subgraph; // delete subgraph, and thereby free memory
+    g.m_children.clear();
     if (num_components == 1)
     {
         *result = SCIP_FEASIBLE;
@@ -163,7 +165,8 @@ SCIP_DECL_CONSENFOPS(ConnectivityCons::scip_enfops)
     Graph& subgraph = g.create_subgraph();
     std::vector<int> component(num_vertices(g));
     size_t num_components = findComponents(scip, NULL, subgraph, component);
-    delete &subgraph;
+    delete &subgraph; // delete subgraph, and thereby free memory
+    g.m_children.clear();
     if (num_components == 1)
     {
         *result = SCIP_FEASIBLE;
@@ -180,7 +183,8 @@ SCIP_DECL_CONSCHECK(ConnectivityCons::scip_check)
     Graph& subgraph = g.create_subgraph();
     std::vector<int> component(num_vertices(g));
     size_t num_components = findComponents(scip, sol, subgraph, component);
-    delete &subgraph;
+    delete &subgraph; // delete subgraph, and thereby free memory
+    g.m_children.clear();
     if (num_components == 1)
     {
         *result = SCIP_FEASIBLE;
