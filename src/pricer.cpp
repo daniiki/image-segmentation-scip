@@ -117,7 +117,7 @@ SCIP_DECL_PRICERREDCOST(ObjPricerLinFit::scip_redcost)
             
             SCIP_CALL(SCIPsolve(scip_pricers[i]));
             SCIP_SOL* sol = SCIPgetBestSol(scip_pricers[i]);
-            if (SCIPisLT(scip, SCIPgetSolOrigObj(scip_pricers[i], sol), lambda))
+            if (SCIPisDualfeasNegative(scip, SCIPgetSolOrigObj(scip_pricers[i], sol) - lambda))
             {
                 //TODO compare SolOrigObj to sum -mu_s + |y_t - y_s|
                 SCIP_CALL(addPartitionVarFromPricerSCIP(scip, scip_pricers[i], sol, _T[i]));
