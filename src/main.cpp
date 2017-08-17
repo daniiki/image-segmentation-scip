@@ -32,7 +32,7 @@ double gamma(Graph g, std::set<Graph::vertex_descriptor> partition)
     return gamma;
 }
 
-SCIP_RETCODE master_problem(Graph g, int k, std::vector<Graph::vertex_descriptor> T, std::vector<std::set<Graph::vertex_descriptor>> inital_partitions, std::vector<std::vector<Graph::vertex_descriptor>>& partitions)
+SCIP_RETCODE master_problem(Graph& g, int k, std::vector<Graph::vertex_descriptor> T, std::vector<std::set<Graph::vertex_descriptor>> inital_partitions, std::vector<std::vector<Graph::vertex_descriptor>>& partitions)
 {
     SCIP* scip;
     SCIP_CALL(SCIPcreate(& scip));
