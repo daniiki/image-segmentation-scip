@@ -6,26 +6,31 @@
 
 using namespace scip;
 
+/**
+ * Variable data associated with segment variables \f$x_P\f$ 
+ */
 class ObjVardataSegment : public ObjVardata
 {
 public:
-    ObjVardataSegment(std::vector<Graph::vertex_descriptor> superpixels) :
+    ObjVardataSegment(
+        std::vector<Graph::vertex_descriptor> superpixels_ ///< superpixels contained in the segment \f$P\f$
+        ) :
         ObjVardata(),
-        _superpixels(superpixels)
+        superpixels(superpixels_)
     {}
     
     bool containsSuperpixel(Graph::vertex_descriptor superpixel)
     {
-        return std::find(_superpixels.begin(), _superpixels.end(), superpixel) != _superpixels.end();
+        return std::find(superpixels.begin(), superpixels.end(), superpixel) != superpixels.end();
     }
     
     std::vector<Graph::vertex_descriptor> getSuperpixels()
     {
-        return _superpixels;
+        return superpixels;
     }
     
 private:
-    std::vector<Graph::vertex_descriptor> _superpixels;
+    std::vector<Graph::vertex_descriptor> superpixels;
 };
 
 #endif

@@ -205,8 +205,6 @@ SCIP_DECL_CONSLOCK(ConnectivityCons::scip_lock)
         {
             // The variable x_s affects connectivity iff s is not in master_nodes,
             // since x_t=1 and x_s=0 for s in master_nodes\{t} are given
-            // Connectivity can only be lost when lowering a variable value,
-            // therefore nlockspos, nlockneg
             SCIP_CALL(SCIPaddVarLocks(scip, superpixel_vars[*p.first], nlockspos + nlocksneg, nlockspos + nlocksneg));
         }
     }

@@ -30,15 +30,18 @@ public:
      */
     virtual SCIP_DECL_CONSTRANS(scip_trans);
     
+    /**
+     * Separation method of constraint handler for LP solution
+     */
     SCIP_DECL_CONSSEPALP(scip_sepalp);
 
+    /**
+     * Separation method of constraint handler for arbitrary primal solution
+     */
     SCIP_DECL_CONSSEPASOL(scip_sepasol);
 
     /**
      * Constraint enforcing method of constraint handler for LP solutions
-     * If the current solution is infeasible, a cutting plane of the following form is added
-     * for some superpixel \f$s\f$ in a component that is not connected to the master node \f$t\f$:
-     * \f[\sum_{s'\in\delta(s)}x_{s'} \geq x_s\f]
      */
     virtual SCIP_DECL_CONSENFOLP(scip_enfolp);
 
@@ -69,6 +72,12 @@ private:
         std::vector<int>& component ///< `component[s]` will be the connected component the superpixel s belongs to
     );
 
+    /**
+     * Adds cutting plane, if possible
+     * If the current solution is infeasible, a cutting plane of the following form is added
+     * for some superpixel \f$s\f$ in a component that is not connected to the master node \f$t\f$:
+     * \f[\sum_{s'\in\delta(s)}x_{s'} \geq x_s\f]
+     */
     SCIP_RETCODE sepaConnectivity(
         SCIP* scip,
         SCIP_CONSHDLR* conshdlr,
