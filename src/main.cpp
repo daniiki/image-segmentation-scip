@@ -100,7 +100,7 @@ SCIP_RETCODE master_problem(Graph& g, int k, std::vector<Graph::vertex_descripto
     SCIP_CALL(SCIPaddCons(scip, num_partitions_cons));
     
     // include pricer 
-    ObjPricerLinFit* pricer_ptr = new ObjPricerLinFit(scip, &g, k, T, partitioning_cons, num_partitions_cons);
+    ObjPricerLinFit* pricer_ptr = new ObjPricerLinFit(scip, g, k, T, partitioning_cons, num_partitions_cons);
     SCIP_CALL(SCIPincludeObjPricer(scip, pricer_ptr, true));
     
     // activate pricer 

@@ -13,7 +13,7 @@
 
 using namespace scip;
 
-ObjPricerLinFit::ObjPricerLinFit(SCIP* scip, Graph* g_, int num_segments_, std::vector<Graph::vertex_descriptor> master_nodes_, std::vector<SCIP_CONS*> partitioning_cons_, SCIP_CONS* num_segments_cons_) :
+ObjPricerLinFit::ObjPricerLinFit(SCIP* scip, Graph& g_, int num_segments_, std::vector<Graph::vertex_descriptor> master_nodes_, std::vector<SCIP_CONS*> partitioning_cons_, SCIP_CONS* num_segments_cons_) :
     ObjPricer(scip, "fitting_pricer", "description", 0, TRUE),
     g(g_), num_segments(num_segments_), master_nodes(master_nodes_), partitioning_cons(partitioning_cons_), num_segments_cons(num_segments_cons_)
 {}
@@ -27,14 +27,14 @@ SCIP_DECL_PRICERINIT(ObjPricerLinFit::scip_init)
     SCIP_CALL(SCIPgetTransformedCons(scip, num_segments_cons, &num_segments_cons));
     
     _bigM = 0;
-    for (auto p = vertices(*g); p.first != p.second; ++p.first)
+    for (auto p = vertices(g); p.first != p.second; ++p.first)
     {
-        if ((*g)[*p.first].color > _bigM)
+        if (g[*p.first].color > _bigM)
         {
-            _bigM = (*g)[*p.first].color;
+            _bigM = g[*p.first].color;
         }
     }
-    _n = num_vertices(*g);
+    _n = num_vertices(g);
     
     scip_pricers.resize(master_nodes.size());
     for (size_t i = 0; i < master_nodes.size(); ++i)
@@ -43,7 +43,7 @@ SCIP_DECL_PRICERINIT(ObjPricerLinFit::scip_init)
 
         SCIP_CALL(SCIPcreate(&scip_pricers[i]));
         SCIP_CALL(SCIPincludeObjConshdlr(scip_pricers[i],
-            new ConnectivityCons(scip_pricers[i], *g, master_nodes, master_nodes[i], probdata->x),
+            new ConnectivityCons(scip_pricers[i], g, master_nodes, master_nodes[i], probdata->x),
             TRUE));
         SCIP_CALL(SCIPincludeDefaultPlugins(scip_pricers[i]));
         SCIPsetMessagehdlrQuiet(scip_pricers[i], TRUE);
@@ -68,7 +68,7 @@ SCIP_RETCODE ObjPricerLinFit::setupVars(SCIP* scip_pricer, Graph::vertex_descrip
 {
     auto probdata = (PricerData*) SCIPgetObjProbData(scip_pricer);
 
-    for (auto p = vertices(*g); p.first != p.second; ++p.first)
+    for (auto p = vertices(g); p.first != p.second; ++p.first)
     {
         SCIP_Real mu_s = 0.0; // random value, is set to the correct one at each iteration
         SCIP_VAR* x_s;
@@ -109,10 +109,10 @@ SCIP_DECL_PRICERREDCOST(ObjPricerLinFit::scip_redcost)
             auto probdata = (PricerData*) SCIPgetObjProbData(scip_pricers[i]);
 
             SCIP_CALL(SCIPfreeTransform(scip_pricers[i])); // reset transformation, solution data and SCIP stage
-            for (auto s = vertices(*g); s.first != s.second; ++s.first)
+            for (auto s = vertices(g); s.first != s.second; ++s.first)
             {
                 SCIP_Real mu_s = SCIPgetDualsolLinear(scip, partitioning_cons[*s.first]);
-                SCIP_CALL(SCIPchgVarObj(scip_pricers[i], probdata->x[*s.first], -mu_s + std::abs((*g)[master_nodes[i]].color - (*g)[*s.first].color)));
+                SCIP_CALL(SCIPchgVarObj(scip_pricers[i], probdata->x[*s.first], -mu_s + std::abs(g[master_nodes[i]].color - g[*s.first].color)));
             }
             
             SCIP_CALL(SCIPsolve(scip_pricers[i]));
@@ -135,22 +135,22 @@ SCIP_Real ObjPricerLinFit::heuristic(SCIP* scip, Graph::vertex_descriptor t, std
 {
     partition = {t};
     std::vector<Graph::vertex_descriptor> to_examine = {t};
-    SCIP_Real fitting_value = (*g)[t].color;
+    SCIP_Real fitting_value = g[t].color;
     fitting_error = 0.0;
     SCIP_Real objective_value = -SCIPgetDualsolLinear(scip, partitioning_cons[t]);  // -mu_t
     while (!to_examine.empty())
     {
         Graph::vertex_descriptor s = to_examine.back();
         to_examine.pop_back();
-        for (auto p = adjacent_vertices(s, *g); p.first != p.second; ++p.first)
+        for (auto p = adjacent_vertices(s, g); p.first != p.second; ++p.first)
         {
             SCIP_Real mu_s = SCIPgetDualsolLinear(scip, partitioning_cons[*p.first]);
-            if (SCIPisNegative(scip, -mu_s + std::abs(fitting_value - (*g)[*p.first].color)))
+            if (SCIPisNegative(scip, -mu_s + std::abs(fitting_value - g[*p.first].color)))
             {
                 partition.push_back(*p.first);
                 to_examine.push_back(*p.first);
-                objective_value += -mu_s + std::abs(fitting_value - (*g)[*p.first].color);
-                fitting_error += std::abs(fitting_value - (*g)[*p.first].color);
+                objective_value += -mu_s + std::abs(fitting_value - g[*p.first].color);
+                fitting_error += std::abs(fitting_value - g[*p.first].color);
             }
         }
     }
@@ -164,12 +164,12 @@ SCIP_RETCODE ObjPricerLinFit::addPartitionVarFromPricerSCIP(SCIP* scip, SCIP* sc
 
     std::vector<Graph::vertex_descriptor> superpixels;
     SCIP_Real gamma_P = 0.0;
-    for (auto s = vertices(*g); s.first != s.second; ++s.first)
+    for (auto s = vertices(g); s.first != s.second; ++s.first)
     {
         if (SCIPisEQ(scip_pricer, SCIPgetSolVal(scip_pricer, sol, probdata->x[*s.first]), 1.0))
         {
             superpixels.push_back(*s.first);
-            gamma_P += std::abs((*g)[t].color - (*g)[*s.first].color);
+            gamma_P += std::abs(g[t].color - g[*s.first].color);
         }
     }
     std::cout << "pricer successful: " << superpixels.size() << std::endl;
