@@ -13,26 +13,15 @@
 #include "vardata.h"
 #include "image.h"
 
-// TO DO: correctly calculate fitting error
-double gamma(Graph g, std::set<Graph::vertex_descriptor> partition)
-{
-    return 10000.0;
-    double sum = 0;
-    for (auto superpixel : partition)
-    {
-        sum += g[superpixel].color;
-    }
-    double average = sum / partition.size();
-    
-    double gamma = 0;
-    for (auto superpixel : partition)
-    {
-        gamma += fabs(average - g[superpixel].color);
-    }
-    return gamma;
-}
-
-SCIP_RETCODE master_problem(Graph& g, int k, std::vector<Graph::vertex_descriptor> T, std::vector<std::set<Graph::vertex_descriptor>> inital_partitions, std::vector<std::vector<Graph::vertex_descriptor>>& partitions)
+/**
+ * Setup and solve the master problem
+ */
+SCIP_RETCODE master_problem(
+    Graph& g,
+    std::vector<Graph::vertex_descriptor> master_nodes,
+    std::vector<std::set<Graph::vertex_descriptor>> initial_segments,
+    std::vector<std::vector<Graph::vertex_descriptor>>& segments ///< the selected segments will be stored in here
+)
 {
     SCIP* scip;
     SCIP_CALL(SCIPcreate(& scip));
@@ -46,10 +35,11 @@ SCIP_RETCODE master_problem(Graph& g, int k, std::vector<Graph::vertex_descripto
     
     std::vector<SCIP_VAR*> vars;
     // vars[i] belongs to partition partitions[i]
-    for (auto partition : inital_partitions)
+    for (auto segment : initial_segments)
     {
         SCIP_VAR* var;
-        SCIP_CALL(SCIPcreateVar(scip, & var, "x_P", 0.0, 1.0, gamma(g, partition), SCIP_VARTYPE_BINARY, TRUE, FALSE, NULL, NULL, NULL, NULL, NULL));
+        // Set a very high objective value for the initial segments so that they aren't selected in the final solution
+        SCIP_CALL(SCIPcreateVar(scip, &var, "x_P", 0.0, 1.0, 10000, SCIP_VARTYPE_BINARY, TRUE, FALSE, NULL, NULL, NULL, NULL, NULL));
         SCIP_CALL(SCIPchgVarUbLazy(scip, var, 1.0));
         SCIP_CALL(SCIPaddVar(scip, var));
         vars.push_back(var);
@@ -70,9 +60,9 @@ SCIP_RETCODE master_problem(Graph& g, int k, std::vector<Graph::vertex_descripto
                      false,                  /* dynamic */
                      false,                  /* removable */
                      false) );               /* stickingatnode */
-        for (int i = 0; i != inital_partitions.size(); ++i)
+        for (size_t i = 0; i != initial_segments.size(); ++i)
         {
-            if (inital_partitions[i].find(*p.first) != inital_partitions[i].end())
+            if (initial_segments[i].find(*p.first) != initial_segments[i].end())
             {
                 SCIP_CALL(SCIPaddCoefLinear(scip, cons1, vars[i], 1.0));
             }
@@ -81,8 +71,9 @@ SCIP_RETCODE master_problem(Graph& g, int k, std::vector<Graph::vertex_descripto
         partitioning_cons.push_back(cons1);
     }
     
-    SCIP_CONS* num_partitions_cons;
-    SCIP_CALL(SCIPcreateConsLinear(scip, & num_partitions_cons, "second", 0, NULL, NULL, k, k,
+    SCIP_CONS* num_segments_cons;
+    size_t k = initial_segments.size();
+    SCIP_CALL(SCIPcreateConsLinear(scip, &num_segments_cons, "second", 0, NULL, NULL, k, k,
                      true,                   /* initial */
                      false,                  /* separate */
                      true,                   /* enforce */
@@ -93,14 +84,14 @@ SCIP_RETCODE master_problem(Graph& g, int k, std::vector<Graph::vertex_descripto
                      false,                  /* dynamic */
                      false,                  /* removable */
                      false) );               /* stickingatnode */
-    for (int i = 0; i != inital_partitions.size(); ++i)
+    for (size_t i = 0; i != initial_segments.size(); ++i)
     {
-        SCIP_CALL(SCIPaddCoefLinear(scip, num_partitions_cons, vars[i], 1.0));
+        SCIP_CALL(SCIPaddCoefLinear(scip, num_segments_cons, vars[i], 1.0));
     }
-    SCIP_CALL(SCIPaddCons(scip, num_partitions_cons));
+    SCIP_CALL(SCIPaddCons(scip, num_segments_cons));
     
     // include pricer 
-    ObjPricerLinFit* pricer_ptr = new ObjPricerLinFit(scip, g, k, T, partitioning_cons, num_partitions_cons);
+    ObjPricerLinFit* pricer_ptr = new ObjPricerLinFit(scip, g, master_nodes, partitioning_cons, num_segments_cons);
     SCIP_CALL(SCIPincludeObjPricer(scip, pricer_ptr, true));
     
     // activate pricer 
@@ -117,12 +108,12 @@ SCIP_RETCODE master_problem(Graph& g, int k, std::vector<Graph::vertex_descripto
         if (SCIPisEQ(scip, SCIPgetSolVal(scip, sol, variables[i]), 1.0))
         {
             auto vardata = (ObjVardataSegment*) SCIPgetObjVardata(scip, variables[i]);
-            partitions.push_back(vardata->getSuperpixels());
+            segments.push_back(vardata->getSuperpixels());
         }
     }
 
     // check if the selected segments are connected
-    for (auto segment : partitions)
+    for (auto segment : segments)
     {
         Graph& subgraph = g.create_subgraph();
         std::vector<int> component(num_vertices(g));
@@ -131,7 +122,7 @@ SCIP_RETCODE master_problem(Graph& g, int k, std::vector<Graph::vertex_descripto
             add_vertex(superpixel, subgraph);
         }
         size_t num_components = connected_components(subgraph, &component[0]);
-        std::cout << "Segment has " << num_components << " connected components." << std::endl;
+        assert(num_components == 1);
     }
     
     return SCIP_OKAY;
@@ -142,29 +133,29 @@ int main()
     std::cout << "hello" << std::endl;
     Image image("../src/input.png", 20);
     Graph g = image.graph();
-    int n = num_vertices(g);
-    int k = 5;
-    int m = n / k;
-    std::vector<Graph::vertex_descriptor> T(k);
-    std::vector<std::set<Graph::vertex_descriptor>> inital_partitions(k);
-    for (int i = 0; i < k; i++)
+    size_t n = num_vertices(g);
+    size_t k = 5; // number of segments to cover the image with
+    size_t m = n / k;
+    std::vector<Graph::vertex_descriptor> master_nodes(k);
+    std::vector<std::set<Graph::vertex_descriptor>> inital_segments(k);
+    for (size_t i = 0; i < k; i++)
     {
-        T[i] = i * m;
+        master_nodes[i] = i * m;
     }
-    for (int i = 0; i < k - 1; i++)
+    for (size_t i = 0; i < k - 1; i++)
     {
-        for (int j = T[i]; j < T[i+1]; ++j)
+        for (size_t j = master_nodes[i]; j < master_nodes[i+1]; ++j)
         {
-            inital_partitions[i].insert(j);
+            inital_segments[i].insert(j);
         }
     }
-    for (int j = T[k-1]; j < n; ++j)
+    for (size_t j = master_nodes[k-1]; j < n; ++j)
     {
-        inital_partitions[k-1].insert(j);
+        inital_segments[k-1].insert(j);
     }
 
-    std::vector<std::vector<Graph::vertex_descriptor>> partitions;
-    SCIP_CALL(master_problem(g, k, T, inital_partitions, partitions));
-    image.writeSegments(T, partitions, g);
+    std::vector<std::vector<Graph::vertex_descriptor>> segments; // the selected segments will be stored in here
+    SCIP_CALL(master_problem(g, master_nodes, inital_segments, segments));
+    image.writeSegments(master_nodes, segments, g);
     return 0;
 }

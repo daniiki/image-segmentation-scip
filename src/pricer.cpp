@@ -13,9 +13,9 @@
 
 using namespace scip;
 
-ObjPricerLinFit::ObjPricerLinFit(SCIP* scip, Graph& g_, int num_segments_, std::vector<Graph::vertex_descriptor> master_nodes_, std::vector<SCIP_CONS*> partitioning_cons_, SCIP_CONS* num_segments_cons_) :
+ObjPricerLinFit::ObjPricerLinFit(SCIP* scip, Graph& g_, std::vector<Graph::vertex_descriptor> master_nodes_, std::vector<SCIP_CONS*> partitioning_cons_, SCIP_CONS* num_segments_cons_) :
     ObjPricer(scip, "fitting_pricer", "description", 0, TRUE),
-    g(g_), num_segments(num_segments_), master_nodes(master_nodes_), partitioning_cons(partitioning_cons_), num_segments_cons(num_segments_cons_)
+    g(g_), master_nodes(master_nodes_), partitioning_cons(partitioning_cons_), num_segments_cons(num_segments_cons_)
 {}
 
 SCIP_DECL_PRICERINIT(ObjPricerLinFit::scip_init)

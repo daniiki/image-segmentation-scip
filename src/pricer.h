@@ -17,7 +17,6 @@ public:
     ObjPricerLinFit(
         SCIP* scip, ///< master SCIP instance
         Graph& g_, ///< the graph of superpixels
-        int num_segments, ///< number of segments to cover the image with
         std::vector<Graph::vertex_descriptor> master_nodes, ///< master nodes of all segments 
         std::vector<SCIP_CONS*> partitioning_cons, 
         SCIP_CONS* num_segments_cons
@@ -59,7 +58,6 @@ public:
 
 private:
     Graph& g;
-    int num_segments;
     std::vector<Graph::vertex_descriptor> master_nodes;
     std::vector<SCIP_CONS*> partitioning_cons;
     SCIP_CONS* num_segments_cons;
