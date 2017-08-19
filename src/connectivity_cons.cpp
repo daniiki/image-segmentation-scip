@@ -60,6 +60,8 @@ SCIP_RETCODE ConnectivityCons::sepaConnectivity(
     }
     else
     {
+        *result = SCIP_SEPARATED;
+        
         for (int i = 0; i < num_components; i++)
         {
             if (i == component[master_node])
@@ -76,13 +78,8 @@ SCIP_RETCODE ConnectivityCons::sepaConnectivity(
                 }
             }
 
-            // add a constraint/row to the problem
-            SCIP_ROW* row;
-            SCIP_CALL(SCIPcreateEmptyRowCons(scip, &row, conshdlr, "sepa_con", 0.0, SCIPinfinity(scip), FALSE, FALSE, TRUE));
-            //SCIP_CALL(SCIPcreateEmptyRowCons(scip, &row, conshdlr, "sepa_con", -superpixels.size() + 1, SCIPinfinity(scip), FALSE, FALSE, TRUE));
-            SCIP_CALL(SCIPcacheRowExtensions(scip, row));
-
-            // sum_{all superpixels s surrounding the component} x_s >= ...
+            // fill a vector with all superpixels surrounding the component
+            std::vector<Graph::vertex_descriptor> surrounding;
             for (auto s : superpixels)
             {
                 for (auto q = out_edges(s, g); q.first != q.second; ++q.first)
@@ -95,34 +92,39 @@ SCIP_RETCODE ConnectivityCons::sepaConnectivity(
                             boost::target(*q.first, g)
                         ) == superpixels.end())
                     {
-                        SCIP_CALL(SCIPaddVarToRow(scip, row, superpixel_vars[boost::target(*q.first, g)], 1.0));
+                        surrounding.push_back(boost::target(*q.first, g));
                     }
                 }
             }
 
-            // ... >= x_{a random superpixel in the component}
-            SCIP_CALL(SCIPaddVarToRow(scip, row, superpixel_vars[superpixels[0]], -1.0));
-
-            /*for (auto s : superpixels)
+            for (auto s : superpixels)
             {
+                // add a constraint/row to the problem
+                SCIP_ROW* row;
+                SCIP_CALL(SCIPcreateEmptyRowCons(scip, &row, conshdlr, "sepa_con", 0.0, SCIPinfinity(scip), FALSE, FALSE, TRUE));
+                SCIP_CALL(SCIPcacheRowExtensions(scip, row));
+                
+                // sum_{all superpixels s surrounding the component} x_s >= ...
+                for (auto s_ : surrounding)
+                {
+                    SCIP_CALL(SCIPaddVarToRow(scip, row, superpixel_vars[s_], 1.0));
+                }
+
+                // ... >= x_s
                 SCIP_CALL(SCIPaddVarToRow(scip, row, superpixel_vars[s], -1.0));
-            }*/
-
-            SCIP_CALL(SCIPflushRowExtensions(scip, row));
-            if (SCIPisCutEfficacious(scip, NULL, row))
-            {
-                SCIP_Bool infeasible;
-                SCIP_CALL(SCIPaddCut(scip, NULL, row, FALSE, &infeasible));
-                if (infeasible)
+                
+                SCIP_CALL(SCIPflushRowExtensions(scip, row));
+                if (SCIPisCutEfficacious(scip, sol, row))
                 {
-                    *result = SCIP_CUTOFF;
+                    SCIP_Bool infeasible;
+                    SCIP_CALL(SCIPaddCut(scip, sol, row, FALSE, &infeasible));
+                    if (infeasible)
+                    {
+                        *result = SCIP_CUTOFF;
+                    }
                 }
-                else
-                {
-                    *result = SCIP_SEPARATED;
-                }
+                SCIP_CALL(SCIPreleaseRow(scip, &row));
             }
-            SCIP_CALL(SCIPreleaseRow(scip, &row));
         }
     }
     delete &subgraph; // delete subgraph, and thereby free memory
