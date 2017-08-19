@@ -1,3 +1,5 @@
+/** @file */ 
+
 #include "graph.h"
 #include <boost/graph/adjacency_list.hpp>
 #include <boost/random/linear_congruential.hpp>
@@ -17,9 +19,10 @@
  * Setup and solve the master problem
  */
 SCIP_RETCODE master_problem(
-    Graph& g,
-    std::vector<Graph::vertex_descriptor> master_nodes,
-    std::vector<std::set<Graph::vertex_descriptor>> initial_segments,
+    Graph& g, ///< the graph of superpixels
+    std::vector<Graph::vertex_descriptor> master_nodes, ///< master nodes of all segments 
+    std::vector<std::set<Graph::vertex_descriptor>> initial_segments, ///< an initial set of segments that will be added as variables
+                                                                      ///< These should form a feasible solution, but do not need to be connected.
     std::vector<std::vector<Graph::vertex_descriptor>>& segments ///< the selected segments will be stored in here
 )
 {
@@ -127,6 +130,9 @@ SCIP_RETCODE master_problem(
     return SCIP_OKAY;
 }
 
+/**
+ * The main function reads the image, retrieves the graph of superpixels, solves the master problem and outputs the solution.
+ */
 int main()
 {
     Image image("src/input.png", 30);
