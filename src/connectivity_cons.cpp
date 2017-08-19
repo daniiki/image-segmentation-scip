@@ -196,7 +196,6 @@ SCIP_DECL_CONSCHECK(ConnectivityCons::scip_check)
         *result = SCIP_INFEASIBLE;
     }
     return SCIP_OKAY;
-
 }
     
 SCIP_DECL_CONSLOCK(ConnectivityCons::scip_lock)
