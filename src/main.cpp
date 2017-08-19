@@ -40,7 +40,6 @@ SCIP_RETCODE master_problem(
         SCIP_VAR* var;
         // Set a very high objective value for the initial segments so that they aren't selected in the final solution
         SCIP_CALL(SCIPcreateVar(scip, &var, "x_P", 0.0, 1.0, 10000, SCIP_VARTYPE_BINARY, TRUE, FALSE, NULL, NULL, NULL, NULL, NULL));
-        SCIP_CALL(SCIPchgVarUbLazy(scip, var, 1.0));
         SCIP_CALL(SCIPaddVar(scip, var));
         vars.push_back(var);
     }
@@ -130,8 +129,7 @@ SCIP_RETCODE master_problem(
 
 int main()
 {
-    std::cout << "hello" << std::endl;
-    Image image("../src/input.png", 20);
+    Image image("src/input.png", 30);
     Graph g = image.graph();
     size_t n = num_vertices(g);
     size_t k = 5; // number of segments to cover the image with

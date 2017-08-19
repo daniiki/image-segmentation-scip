@@ -117,7 +117,7 @@ SCIP_RETCODE ConnectivityCons::sepaConnectivity(
                 if (SCIPisCutEfficacious(scip, sol, row))
                 {
                     SCIP_Bool infeasible;
-                    SCIP_CALL(SCIPaddCut(scip, sol, row, FALSE, &infeasible));
+                    SCIP_CALL(SCIPaddCut(scip, sol, row, TRUE, &infeasible));
                     if (infeasible)
                     {
                         *result = SCIP_CUTOFF;
@@ -196,7 +196,6 @@ SCIP_DECL_CONSCHECK(ConnectivityCons::scip_check)
         *result = SCIP_INFEASIBLE;
     }
     return SCIP_OKAY;
-
 }
     
 SCIP_DECL_CONSLOCK(ConnectivityCons::scip_lock)
@@ -210,6 +209,7 @@ SCIP_DECL_CONSLOCK(ConnectivityCons::scip_lock)
             SCIP_CALL(SCIPaddVarLocks(scip, superpixel_vars[*p.first], nlockspos + nlocksneg, nlockspos + nlocksneg));
         }
     }
+    return SCIP_OKAY;
 }
 
 SCIP_RETCODE SCIPcreateConsConnectivity(

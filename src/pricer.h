@@ -43,8 +43,6 @@ public:
      */
     virtual SCIP_DECL_PRICERREDCOST(scip_redcost);
     
-    SCIP_Real heuristic(SCIP* scip, Graph::vertex_descriptor t, std::vector<Graph::vertex_descriptor>& partition, SCIP_Real& fitting_error);
-
     /**
      * Calls `addPartitionVar` with the vector of all superpixels \f$s\f$ for which \f$x_s = 1\f$
      */
