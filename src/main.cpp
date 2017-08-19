@@ -50,7 +50,6 @@ SCIP_RETCODE master_problem(Graph& g, int k, std::vector<Graph::vertex_descripto
     {
         SCIP_VAR* var;
         SCIP_CALL(SCIPcreateVar(scip, & var, "x_P", 0.0, 1.0, gamma(g, partition), SCIP_VARTYPE_BINARY, TRUE, FALSE, NULL, NULL, NULL, NULL, NULL));
-        SCIP_CALL(SCIPchgVarUbLazy(scip, var, 1.0));
         SCIP_CALL(SCIPaddVar(scip, var));
         vars.push_back(var);
     }
@@ -139,8 +138,7 @@ SCIP_RETCODE master_problem(Graph& g, int k, std::vector<Graph::vertex_descripto
 
 int main()
 {
-    std::cout << "hello" << std::endl;
-    Image image("../src/input.png", 20);
+    Image image("src/input.png", 20);
     Graph g = image.graph();
     int n = num_vertices(g);
     int k = 5;

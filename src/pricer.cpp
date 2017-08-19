@@ -56,7 +56,7 @@ SCIP_DECL_PRICERINIT(ObjPricerLinFit::scip_init)
 
         SCIP_CONS* cons;
         SCIP_CALL(SCIPcreateConsConnectivity(scip_pricers[i], &cons, "connectivity",
-            FALSE, TRUE, TRUE, TRUE, TRUE, FALSE, FALSE, FALSE, TRUE));
+            TRUE, TRUE, TRUE, TRUE, TRUE, FALSE, FALSE, FALSE, TRUE));
         SCIP_CALL(SCIPaddCons(scip_pricers[i], cons));
         SCIP_CALL(SCIPreleaseCons(scip_pricers[i], &cons));
     }
@@ -183,7 +183,6 @@ SCIP_RETCODE ObjPricerLinFit::addPartitionVar(SCIP* scip, std::vector<Graph::ver
     auto vardata = new ObjVardataSegment(superpixels);
     SCIP_VAR* x_P;
     SCIP_CALL(SCIPcreateObjVar(scip, & x_P, "x_P", 0.0, 1.0, gamma_P, SCIP_VARTYPE_BINARY, FALSE, FALSE, vardata, TRUE));
-    SCIP_CALL(SCIPchgVarUbLazy(scip, x_P, 1.0));
     SCIP_CALL(SCIPaddPricedVar(scip, x_P, 1.0));
 
     // add coefficients to constraints (of the master problem)
