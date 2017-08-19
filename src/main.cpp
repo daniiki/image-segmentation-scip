@@ -139,7 +139,8 @@ SCIP_RETCODE master_problem(Graph& g, int k, std::vector<Graph::vertex_descripto
 
 int main()
 {
-    Image image("input.png", 20);
+    std::cout << "hello" << std::endl;
+    Image image("../src/input.png", 20);
     Graph g = image.graph();
     int n = num_vertices(g);
     int k = 5;

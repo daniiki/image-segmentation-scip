@@ -1,10 +1,9 @@
 { pkgs ? import <nixpkgs> {} }:
 
 let
-  stdenv = pkgs.stdenv;
-  scipoptsuite = (import ./scipoptsuite.nix) { inherit (pkgs) stdenv fetchurl zlib gmp readline; };
+  gmp-static = pkgs.gmp.override { withStatic = true; };
   vlfeat = (import ./vlfeat.nix) { inherit (pkgs) stdenv fetchurl; };
-in stdenv.mkDerivation {
+in pkgs.stdenv.mkDerivation {
   name = "Fortgeschrittenenpraktikum";
-  buildInputs = with pkgs; [ scipoptsuite vlfeat boost pngpp ];
+  propagatedBuildInputs = with pkgs; [ zlib zlib.static gmp-static stdenv.cc.libc.static readline vlfeat boost libpng pngpp libpng doxygen gdb ];
 }
