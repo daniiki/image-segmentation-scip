@@ -16,6 +16,10 @@
 \newcommand{\superpixels}{\mathcal{S}}
 \newcommand{\segments}{\mathcal{P}}
 
+\usepackage{algpseudocode,algorithm}
+\algnewcommand{\algorithmicgoto}{\textbf{goto}}%
+\algnewcommand{\Goto}[1]{\algorithmicgoto~\ref{#1}}%
+
 \begin{document}
 	\maketitle
 	
@@ -184,7 +188,7 @@
 	
 	\section{Implementation details}
     \begin{frame}{Programming Language}
-        We're using C++.
+        We are using C++.
         This makes it easy to interface with SCIP and add custom plugins.
         Untitled
         There are multiple SCIP examples written in C++, notably
@@ -197,11 +201,30 @@
     
 	\section{Possible improvements}
     \begin{frame}{Pricing heuristic}
+        To make the solving process substantially faster,
+        there should be a heuristic to find segments with negative reduced costs ($rc$).
         
+        \begin{algorithm}[H]
+            \caption{Simple pricing heuristic}
+            \begin{algorithmic}[1]
+                \State $P\gets\{t\}$
+                \State Let $s\in\delta(P)$ s.t. $rc(P\cup\{s\})$ is minimal. \label{nextnode}
+                \If {$rc(P)\geq0$}
+                    \State $P\gets P\cup\{s\}$
+                    \State \Goto{nextnode}
+                \ElsIf {$rc(P\cup\{s\}) < rc(P)$}
+                    \State $P\gets P\cup\{s\}$
+                    \State \Goto{nextnode}
+                \Else
+                    \State \Return $P$
+                \EndIf
+            \end{algorithmic}
+        \end{algorithm}
     \end{frame}
 
     \begin{frame}{Branching rules}
-        content...
+        Ideally, one would develop branching rules specially for the master and pricing problem.
+        This is out of scope for this practical.
     \end{frame}
     
     \section{Demo}
