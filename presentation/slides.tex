@@ -15,9 +15,6 @@
 
 \newcommand{\superpixels}{\mathcal{S}}
 \newcommand{\segments}{\mathcal{P}}
-\DeclareMathOperator*{\argmin}{arg\,min}
-\DeclareMathOperator*{\Out}{Out}
-\DeclareMathOperator*{\In}{In}
 
 \begin{document}
 	\maketitle
@@ -33,22 +30,9 @@
 	\end{frame}	
 	
 	\begin{frame}{Master problem}
-		Given data in the theoretical formulation of the master problem:
-		\begin{itemize}
-			\item $\superpixels$: set of superpixels
-			\item $\segments$: set of segments %sagen: connected
-			\item $y_s\geq0$: color of superpixel $s\in\superpixels$
-			\item $T\subseteq\superpixels$: set of master nodes %number of segments to select = #T
-			\item $k=|T|$: number of segments to cover the image with
-			\item $r_P=\sum_{s\in P}|y_t-y_s|$: error of segment $P\in\segments$,
-				where $t\in T$ is the single master node for which $t\in P$
-		\end{itemize}
-	\end{frame}
-	
-	\begin{frame}{Master problem}
 		\begin{figure}
 			\centering
-				\input{data_image.pdf_tex}
+				%\input{data_image.pdf_tex}
 				\caption{Input image}
 			
 		\end{figure}
@@ -57,7 +41,7 @@
 	\begin{frame}{Master problem}
 		\begin{figure}
 			\centering
-			\input{data_superpixels.pdf_tex}
+			%\input{data_superpixels.pdf_tex}
 		\end{figure}
 	\end{frame}
 	
@@ -68,11 +52,23 @@
 			\caption{Selected segments}
 		\end{figure}
 	\end{frame}
-	
-	%TODO graph
+
+    \begin{frame}{Master problem}
+        Given data in the theoretical formulation of the master problem:
+        \begin{itemize}
+            \item $\superpixels$: set of superpixels
+            \item $\segments$: set of segments %sagen: connected
+            \item $y_s\geq0$: color of superpixel $s\in\superpixels$
+            \item $T\subseteq\superpixels$: set of master nodes %number of segments to select = #T
+            \item $k=|T|$: number of segments to cover the image with
+            \item $r_P=\sum_{s\in P}|y_t-y_s|$: error of segment $P\in\segments$,
+            where $t\in T$ is the single master node for which $t\in P$
+        \end{itemize}
+    \end{frame}
 	
 	\begin{frame}{Master problem}
-		%TODO vars
+		There is a binary variable $x_P$ for every segment $P\in\segments$.
+        
 		The problem reads as follows:
 		\begin{align}
     		&\min\quad \sum_{p\in\mathcal{P}} r_P\cdot x_P\\
@@ -113,18 +109,21 @@
 	
 	\begin{frame}{Pricing problem}
 		Constraint (6) of the dual problem is violated by the new segment if and only if
-		\[-\sum_{s\in\superpixels} x_s\cdot\mu_s + \sum_{s\in\superpixels} x_s\cdot|y_t-y_s| < \lambda\]
+		\[-\sum_{s\in\superpixels} x_s\cdot\mu_s + \underbrace{\sum_{s\in\superpixels} x_s\cdot|y_t-y_s|}_{=r_{\{s\in\superpixels\ :\ x_s=1\}}} < \lambda.\]
+        
 		Therefore, a new segment has to satisfy this inequality in order to be added to the master problem.
 	\end{frame}
-	
+    
 	\begin{frame}{Cutting planes}
 		We use a cutting planes approach to ensure connectivity of the new segments.
+        To this goal, we represent the superpixels as nodes in a graph.
+        Two superpixels are connected if they have adjacent pixels in the original image.
 		
 		After solving the pricing problem,
 		we look at the subgraph of all $s\in\superpixels$ for which $x_s=1$.
 		If there is a component $C$ that is not connected to $t$,
 		we add the following cut for each $s\in C$:
-		\[\sum_{s'\in\delta(s)}x_{s'} \geq x_s\]
+		\[\sum_{s'\in\delta(C)}x_{s'} \geq x_s\]
 		
 		%TODO ruby's bild
 	\end{frame}
@@ -137,9 +136,67 @@
 			and mixed integer nonlinear programming (MINLP).
 			It is also a framework for constraint integer programming and branch-cut-and-price.''
 		\end{quote}
-	\end{frame}	
+	\end{frame}
+
+    \begin{frame}{What is SCIP?}
+        \begin{figure}
+            \includegraphics{comparison}
+            \caption{MIP solver benchmark}
+        \end{figure}
+    \end{frame}
+
+    \begin{frame}{What is SCIP?}
+        SCIP is developed at the Zuse Institute Berlin.
+        It is written in C, but can also be interfaced using
+        \begin{itemize}
+            \item C++
+            \item Python
+            \item Java
+            \item \dots
+        \end{itemize}
+    
+        SCIP can use different LP solvers, e.g.
+        \begin{itemize}
+            \item SoPlex % also developed at ZIB
+            \item CPLEX
+        \end{itemize}
+    \end{frame}
+
+    \begin{frame}{Advantages}
+        Among others, SCIP has support for customizing the following aspects of the solution process:
+        \begin{itemize}
+            \item Constraint handlers % d.h. eigene Arten von constraints und auch cutting planes
+            \item Separators
+            \item Variable pricers
+            \item Branching rules
+        \end{itemize}
+        Because these use callbacks, you do not have to write your own control loop.
+        
+        Also, SCIP can automatically do branching.
+        You only need to specify that a certain variable should be binary/integral.
+    \end{frame}
 	
 	\section{Implementation details}
+    \begin{frame}{Programming Language}
+        We're using C++.
+        This makes it easy to interface with SCIP and add custom plugins.
+        
+        There are multiple SCIP examples written in C++, notably
+        \begin{itemize}
+            \item \textbf{VRP}, involving a custom pricer % vehicle routing problem
+            \item \textbf{TSP}, involving a custom constraint handler % travelling salesman problem
+        \end{itemize}
+        We started off of these and implemented the desired functionality.
+    \end{frame}
+    
 	\section{Possible improvements}
-	\section{Demo}
+    \begin{frame}{Pricing heuristic}
+        
+    \end{frame}
+
+    \begin{frame}{Branching rules}
+        content...
+    \end{frame}
+    
+    \section{Demo}
 \end{document} 
