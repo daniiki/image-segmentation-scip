@@ -1,7 +1,7 @@
-PDFLATEX = lualatex -synctex=1 -interaction=nonstopmode
+PDFLATEX = lualatex -synctex=1 -interaction=nonstopmode -shell-escape
 LATEXMKOPT = -bibtex -pdf -pdflatex="$(PDFLATEX)"
 
-PDF_TEX = data_image.pdf_tex data_superpixels.pdf_tex data_segments.pdf_tex
+PDF_TEX = $(shell for file in *.svg; do echo $${file%.svg}.pdf_tex; done)
 
 .PHONY: slides.pdf report.pdf all
 
@@ -19,9 +19,5 @@ cleanall: clean
 slides.pdf: slides.tex
 	latexmk $(LATEXMKOPT) $<
 
-data_image.pdf_tex: data.svg
-	file=$@; inkscape -D -z -i layer1 --file=$+ --export-pdf=$${file%_tex} --export-latex
-data_superpixels.pdf_tex: data.svg
-	file=$@; inkscape -D -z -i layer2 --file=$+ --export-pdf=$${file%_tex} --export-latex
-data_segments.pdf_tex: data.svg
-	file=$@; inkscape -D -z -i layer3 --file=$+ --export-pdf=$${file%_tex} --export-latex
+%.pdf_tex: %.svg
+	file=$@; inkscape -D -z --file=$+ --export-pdf=$${file%_tex} --export-latex

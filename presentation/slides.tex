@@ -1,4 +1,5 @@
-%!TEX program = xelatex
+%!TEX program = lualatex
+
 \documentclass[fleqn]{beamer}
 \usetheme{metropolis}
 \usepackage{graphicx}
@@ -20,6 +21,8 @@
 \algnewcommand{\algorithmicgoto}{\textbf{goto}}%
 \algnewcommand{\Goto}[1]{\algorithmicgoto~\ref{#1}}%
 
+\usepackage{minted}
+
 \begin{document}
 	\maketitle
 	
@@ -31,31 +34,37 @@
 	\section{Problem description}
 	\begin{frame}{Task}
 		TODO
-	\end{frame}	
-	
-	\begin{frame}{Master problem}
-		\begin{figure}
-			\centering
-				%\input{data_image.pdf_tex}
-				\caption{Input image}
-			
-		\end{figure}
 	\end{frame}
 	
 	\begin{frame}{Master problem}
 		\begin{figure}
-			\centering
-			%\input{data_superpixels.pdf_tex}
+            \begin{center}
+                \def\svgwidth{60mm}
+                \input{input.pdf_tex}
+                \caption{Input image}
+            \end{center}
 		\end{figure}
 	\end{frame}
-	
-	\begin{frame}{Master problem}
-		\begin{figure}
-			\centering
-			\includegraphics[scale=.5]{data_segments.png}
-			\caption{Selected segments}
-		\end{figure}
-	\end{frame}
+
+    \begin{frame}{Master problem}
+        \begin{figure}
+            \begin{center}
+               \def\svgwidth{60mm}
+               \input{superpixels.pdf_tex}
+               \caption{Generated superpixels}
+           \end{center}
+        \end{figure}
+    \end{frame}
+
+    \begin{frame}{Master problem}
+        \begin{figure}
+            \begin{center}
+                \def\svgwidth{60mm}
+                \input{segments.pdf_tex}
+                \caption{Master nodes and segments}
+            \end{center}
+        \end{figure}
+    \end{frame}	
 
     \begin{frame}{Master problem}
         Given data in the theoretical formulation of the master problem:
@@ -106,7 +115,7 @@
 		 
 		\begin{align}
     		&\min\quad -\sum_{s\in\superpixels} x_s\cdot\mu_s + \sum_{s\in\superpixels} x_s\cdot|y_t-y_s| \\
-    		&\text{s.t.}\quad \text{connectivity constraints} \\
+    		&\text{s.t.}\quad \text{connectivity constraint} \\
 	    	&\phantom{\text{s.t.}\quad} x_s \in\{0,1\}
 		\end{align}
 	\end{frame}
@@ -198,7 +207,17 @@
         \end{itemize}
         We started off of these and implemented the desired functionality.
     \end{frame}
+
+    \begin{frame}{Reading the image}
+        The image is first read from a PNG file using libpng and png++.
+        Then, the image is segmented into superpixels using an algorithm called SLIC. %TODO reference SLIC
+    \end{frame}
     
+    \begin{frame}{Creating the graph}
+        To representing the graph of superpixels, we use the Boost library:
+        \inputminted[firstline=36, lastline=45]{C++}{../src/graph.h}
+    \end{frame}
+        
 	\section{Possible improvements}
     \begin{frame}{Pricing heuristic}
         To make the solving process substantially faster,
@@ -228,4 +247,4 @@
     \end{frame}
     
     \section{Demo}
-\end{document} 
+\end{document}
