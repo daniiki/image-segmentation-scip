@@ -124,8 +124,14 @@
 		If there is a component $C$ that is not connected to $t$,
 		we add the following cut for each $s\in C$:
 		\[\sum_{s'\in\delta(C)}x_{s'} \geq x_s\]
-		
-		%TODO ruby's bild
+	\end{frame}
+
+	\begin{frame}{Cutting planes}
+		\begin{figure}
+			\centering
+			\includegraphics[scale=.3]{cuttingplanes.png}
+			\caption{Violated connectivity constraint}
+		\end{figure}
 	\end{frame}
 	
 	\section{About SCIP}
@@ -180,7 +186,7 @@
     \begin{frame}{Programming Language}
         We're using C++.
         This makes it easy to interface with SCIP and add custom plugins.
-        
+        Untitled
         There are multiple SCIP examples written in C++, notably
         \begin{itemize}
             \item \textbf{VRP}, involving a custom pricer % vehicle routing problem
