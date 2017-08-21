@@ -31,15 +31,11 @@
 		\tableofcontents
 	\end{frame}
 
-	\section{Problem description}
+    \section{Problem definition}
 	\begin{frame}{Task}
-		TODO
-	\end{frame}
-	
-	\begin{frame}{Master problem}
 		\begin{figure}
             \begin{center}
-                \def\svgwidth{60mm}
+               % \def\svgwidth{60mm}
                 %\input{input.pdf_tex}
                 \includegraphics[width=60mm]{input}
                 \caption{Input image}
@@ -47,10 +43,10 @@
 		\end{figure}
 	\end{frame}
 
-    \begin{frame}{Master problem}
+    \begin{frame}{Task}
         \begin{figure}
             \begin{center}
-               \def\svgwidth{60mm}
+             %  \def\svgwidth{60mm}
                %\input{superpixels.pdf_tex}
                \includegraphics[width=60mm]{superpixels}
                \caption{Generated superpixels}
@@ -58,10 +54,10 @@
         \end{figure}
     \end{frame}
 
-    \begin{frame}{Master problem}
+    \begin{frame}{Task}
         \begin{figure}
             \begin{center}
-                \def\svgwidth{60mm}
+                %\def\svgwidth{60mm}
                 %\input{segments.pdf_tex}
                 \includegraphics[width=60mm]{segments}
                 \caption{Master nodes and segments}
@@ -185,24 +181,22 @@
     \end{frame}
 
     \begin{frame}{Advantages}
-        Among others, SCIP has support for customizing the following aspects of the solution process:
+        SCIP supports cutomizing
         \begin{itemize}
             \item Constraint handlers % d.h. eigene Arten von constraints und auch cutting planes
             \item Separators
             \item Variable pricers
             \item Branching rules
         \end{itemize}
-        Because these use callbacks, you do not have to write your own control loop.
+        These use callbacks, so there is no need for a custom control loop.
         
-        Also, SCIP can automatically do branching.
-        You only need to specify that a certain variable should be binary/integral.
+        Also, SCIP can automatically do branching on variables declared as integral.
     \end{frame}
 	
 	\section{Implementation details}
     \begin{frame}{Programming Language}
         We are using C++.
         This makes it easy to interface with SCIP and add custom plugins.
-        Untitled
         There are multiple SCIP examples written in C++, notably
         \begin{itemize}
             \item \textbf{VRP}, involving a custom pricer % vehicle routing problem
@@ -216,15 +210,195 @@
         Then, the image is segmented into superpixels using an algorithm called SLIC. %TODO reference SLIC
     \end{frame}
     
-    \begin{frame}{Creating the graph}
-        To representing the graph of superpixels, we use the Boost library:
-        \inputminted[firstline=36, lastline=45]{C++}{../src/graph.h}
+    \begin{frame}[fragile]{Creating the graph}
+        To representing the graph of superpixels, we use the Boost Graph Library.
+        
+		\begin{minted}[fontsize=\tiny]{C++}
+Graph g(superpixelcount);
+for (auto p = vertices(g); p.first != p.second; ++p.first)
+{
+  g[*p.first].color = avgcolor[*p.first];
+}	
+// add edges
+for (png::uint_32 x = 0; x < width; ++x)
+{
+  for (png::uint_32 y = 0; y < height; ++y)
+  {
+    auto current = x + y * width;
+    auto right = x + 1 + y * width;
+    auto below = x + (y + 1) * width;
+    if (x + 1 < width
+      && segmentation[current] != segmentation[right])
+    {
+      // add edge to the superpixel on the right
+      auto edge = add_edge(segmentation[current], segmentation[right], g);
+      auto weight = boost::get(boost::edge_weight, g, edge.first);
+      boost::put(boost::edge_weight, g, edge.first, weight + 1);
+    }
+    ...
+  }
+}
+		\end{minted}
+	\end{frame}
+	
+	\begin{frame}[fragile]{Master problem definition}
+        First, we need to create a SCIP instance.
+        \begin{minted}[fontsize=\tiny]{C++}
+SCIP* scip;
+SCIP_CALL(SCIPcreate(&scip));
+SCIP_CALL(SCIPcreateProb(scip, "master_problem", ...));
+SCIP_CALL(SCIPsetObjsense(scip, SCIP_OBJSENSE_MINIMIZE));
+        \end{minted}
+        
+        We start with initial segments which form a partitioning.
+        \begin{minted}[fontsize=\tiny]{C++}
+std::vector<SCIP_VAR*> vars;
+for (auto segment : initial_segments)
+{
+  SCIP_VAR* var;
+  // Set a very high objective value for the initial segments
+  // so that they aren't selected in the final solution
+  SCIP_CALL(SCIPcreateVar(scip, &var, "x_P", 0.0, 1.0, 10000, SCIP_VARTYPE_BINARY, ...));
+  SCIP_CALL(SCIPaddVar(scip, var));
+  vars.push_back(var);
+}
+        \end{minted}
+    \end{frame}
+
+    \begin{frame}[fragile]{Adding constraints}
+        Finally, we add the partitioning constraints.
+        \begin{minted}[fontsize=\tiny]{C++}
+std::vector<SCIP_CONS*> partitioning_cons;
+for (auto p = vertices(g); p.first != p.second; ++p.first)
+{
+  SCIP_CONS* cons1;
+  SCIP_CALL(SCIPcreateConsLinear(scip, &cons1, "first", 0, NULL, NULL, 1.0, 1.0, ...));
+  for (size_t i = 0; i != initial_segments.size(); ++i)
+  {
+    if (initial_segments[i].find(*p.first) != initial_segments[i].end())
+    {
+      SCIP_CALL(SCIPaddCoefLinear(scip, cons1, vars[i], 1.0));
+    }
+  }
+  SCIP_CALL(SCIPaddCons(scip, cons1));
+  partitioning_cons.push_back(cons1);
+}
+
+SCIP_CONS* num_segments_cons;
+...
+        \end{minted}
+	\end{frame}
+
+    \begin{frame}[fragile]{Pricer callback}
+        \begin{minted}[fontsize=\tiny]{C++}
+SCIP_DECL_PRICERREDCOST(scip_redcost)
+{
+  SCIP_Real lambda = SCIPgetDualsolLinear(scip, num_segments_cons);
+
+  for (size_t i = 0; i < master_nodes.size(); ++i)
+  {
+    auto probdata = (PricerData*) SCIPgetObjProbData(scip_pricers[i]);
+    for (auto s = vertices(g); s.first != s.second; ++s.first)
+    {
+      SCIP_Real mu_s = SCIPgetDualsolLinear(scip, partitioning_cons[*s.first]);
+      SCIP_CALL(SCIPchgVarObj(scip_pricers[i], probdata->x[*s.first],
+        -mu_s + std::abs(g[master_nodes[i]].color - g[*s.first].color)));
+    }
+    SCIP_CALL(SCIPsolve(scip_pricers[i]));
+    SCIP_SOL* sol = SCIPgetBestSol(scip_pricers[i]);
+    if (SCIPisDualfeasNegative(scip, SCIPgetSolOrigObj(scip_pricers[i], sol) - lambda))
+    {
+      SCIP_CALL(addSegmentVar(scip, scip_pricers[i], sol, master_nodes[i]));
+    }
+  }
+  *result = SCIP_SUCCESS; // at least one improving variable was found,
+                          // or it is ensured that no such variable exists
+  return SCIP_OKAY;
+}
+        \end{minted}
+    \end{frame}
+
+    \begin{frame}[fragile]{Constraint handler callback}
+        First, we create the subgraph of all superpixels in the new component. 
+        \begin{minted}[fontsize=\tiny]{C++}
+Graph& subgraph = g.create_subgraph();
+std::vector<int> component(num_vertices(g));
+for (auto p = vertices(g); p.first != p.second; ++p.first)
+{
+  if (SCIPisEQ(scip, SCIPgetSolVal(scip, sol, superpixel_vars[*p.first]), 1.0))
+  {
+    add_vertex(*p.first, subgraph);
+  }
+}
+size_t num_components = connected_components(subgraph, &component[0]);
+         \end{minted}
+        
+    \end{frame}
+
+    \begin{frame}[fragile]{Constraint handler callback}
+        \begin{minted}[fontsize=\tiny]{C++}
+for (int i = 0; i < num_components; i++)
+{
+  if (i == component[master_node])
+    continue;
+    
+  // all superpixels in the component
+  std::vector<Graph::vertex_descriptor> superpixels = ...;
+  // all superpixels surrounding the component
+  std::vector<Graph::vertex_descriptor> surrounding = ...;
+  
+  for (auto s : superpixels)
+  {
+    // add a constraint/row to the problem
+    SCIP_ROW* row;
+    SCIP_CALL(SCIPcreateEmptyRowCons(scip, &row, conshdlr, "sepa_con",
+      0.0, SCIPinfinity(scip), ...));
+
+    // sum_{all superpixels s surrounding the component} x_s >= ...
+    for (auto s_ : surrounding)
+      SCIP_CALL(SCIPaddVarToRow(scip, row, superpixel_vars[s_], 1.0));
+
+    // ... >= x_s
+    SCIP_CALL(SCIPaddVarToRow(scip, row, superpixel_vars[s], -1.0));
+
+    SCIP_CALL(SCIPflushRowExtensions(scip, row));
+    SCIP_CALL(SCIPaddCut(scip, sol, row, ...));
+  }
+}
+        \end{minted}
+    \end{frame}
+
+    \begin{frame}[fragile]{Solve master problem}
+        \begin{minted}[fontsize=\tiny]{C++}
+// include pricer 
+ObjPricerLinFit* pricer_ptr = new SegmentPricer(scip, g, ...);
+SCIP_CALL(SCIPincludeObjPricer(scip, pricer_ptr, true));
+
+// activate pricer 
+SCIP_CALL(SCIPactivatePricer(scip, SCIPfindPricer(scip, "pricer")));
+
+// solve
+SCIP_CALL(SCIPsolve(scip));
+SCIP_SOL* sol = SCIPgetBestSol(scip);
+
+// return selected segments
+std::vector<std::vector<Graph::vertex_descriptor>> segments;
+SCIP_VAR** variables = SCIPgetVars(scip);
+for (int i = 0; i < SCIPgetNVars(scip); ++i)
+{
+  if (SCIPisEQ(scip, SCIPgetSolVal(scip, sol, variables[i]), 1.0))
+  {
+    auto vardata = (ObjVardataSegment*) SCIPgetObjVardata(scip, variables[i]);
+    segments.push_back(vardata->getSuperpixels());
+  }
+}
+        \end{minted}
     \end{frame}
         
 	\section{Possible improvements}
     \begin{frame}{Pricing heuristic}
-        To make the solving process substantially faster,
-        there should be a heuristic to find segments with negative reduced costs ($rc$).
+        To make the solving process faster,
+        a heuristic to find segments with negative reduced costs ($rc$) should be added.
         
         \begin{algorithm}[H]
             \caption{Simple pricing heuristic}
