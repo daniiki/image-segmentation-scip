@@ -7,10 +7,9 @@
 \usepackage{color}
 \usepackage[super]{nth}
 \title{Image segmentation using SCIP}
-\subtitle{}
 \date{\today}
 \author{Robert Schütz, Daniela Kilian}
-\institute{Advanced project SS 2017}
+\subtitle{Advanced practical SS 2017}
 
 \usepackage{mathtools}
 
@@ -93,7 +92,7 @@
 	\begin{frame}{Dual problem}
 		The dual variables are
 		\begin{itemize}
-			\item $\mu_s, \forall s\in\superpixels$: corresponding to (2)
+			\item $\mu_s$ for all $s\in\superpixels$: corresponding to (2)
 			\item $\lambda$: corresponding to (3)
 		\end{itemize}
 		
@@ -127,23 +126,25 @@
 	\end{frame}
     
 	\begin{frame}{Cutting planes}
-		We use a cutting planes approach to ensure connectivity of the new segments.
-        To this goal, we represent the superpixels as nodes in a graph.
-        Two superpixels are connected if they have adjacent pixels in the original image.
+		%We use a cutting planes approach to ensure connectivity of the new segments.
+        %To this goal, we represent the superpixels as nodes in a graph.
+        %Two superpixels are connected if they have adjacent pixels in the original image.
 		
-		After solving the pricing problem,
-		we look at the subgraph of all $s\in\superpixels$ for which $x_s=1$.
-		If there is a component $C$ that is not connected to $t$,
-		we add the following cut for each $s\in C$:
-		\[\sum_{s'\in\delta(C)}x_{s'} \geq x_s\]
-	\end{frame}
-
-	\begin{frame}{Cutting planes}
-		\begin{figure}
-			\centering
-			\includegraphics[scale=.3]{cuttingplanes.png}
-			\caption{Violated connectivity constraint}
-		\end{figure}
+		%After solving the pricing problem,
+		%we look at the subgraph of all $s\in\superpixels$ for which $x_s=1$.
+		%If there is a component $C$ that is not connected to $t$,
+		%we add the following cut for each $s\in C$:
+        
+		We look at the subgraph with vertices $\{s\in\superpixels:x_s=1\}$.
+        If a component $C$ is not connected to $t$,
+        we add a cut for each $s\in C$:
+        \[\sum_{s'\in\delta(C)}x_{s'} \geq x_s\]
+        
+        \begin{figure}
+            \centering
+            \includegraphics[scale=.2]{cuttingplanes.png}
+            \caption{Violated connectivity constraint}
+        \end{figure}
 	\end{frame}
 	
 	\section{About SCIP}
@@ -170,7 +171,6 @@
             \item C++
             \item Python
             \item Java
-            \item \dots
         \end{itemize}
     
         SCIP can use different LP solvers, e.g.
@@ -205,9 +205,24 @@
         We started off of these and implemented the desired functionality.
     \end{frame}
 
-    \begin{frame}{Reading the image}
+    \begin{frame}[fragile]{Reading the image}
         The image is first read from a PNG file using libpng and png++.
         Then, the image is segmented into superpixels using an algorithm called SLIC. %TODO reference SLIC
+        
+        \begin{minted}[fontsize=\tiny]{C++}
+png::image<png::gray_pixel> pngimage(filename);
+float* image = new float[pngimage.get_width() * pngimage.get_height()];
+for (png::uint_32 x = 0; x < pngimage.get_width(); ++x)
+{
+  for (png::uint_32 y = 0; y < pngimage.get_height(); ++y)
+  {
+    image[x + y * pngimage.get_width()] = pngimage[y][x] / 255.0;
+  }
+}
+
+segmentation = new vl_uint32[imagesize];
+vl_slic_segment(segmentation, image, pngimage.get_width(), pngimage.get_height(), ...);
+        \end{minted}
     \end{frame}
     
     \begin{frame}[fragile]{Creating the graph}
@@ -419,7 +434,10 @@ for (int i = 0; i < SCIPgetNVars(scip); ++i)
     \end{frame}
 
     \begin{frame}{Branching rules}
-        Ideally, one would develop branching rules specially for the master and pricing problem.
+        Ideally, one would develop branching rules specially for the master and pricing problem.     
+        
+        For example, branching on segments with minimal objective values could lead to good results.
+        
         This is out of scope for this practical.
     \end{frame}
     
