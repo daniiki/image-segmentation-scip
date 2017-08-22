@@ -37,7 +37,7 @@ SCIP_RETCODE master_problem(
     SCIP_CALL(SCIPsetObjsense(scip, SCIP_OBJSENSE_MINIMIZE));
     
     std::vector<SCIP_VAR*> vars;
-    // vars[i] belongs to partition partitions[i]
+    // vars[i] belongs to segment initial_segments[i]
     for (auto segment : initial_segments)
     {
         SCIP_VAR* var;
@@ -93,7 +93,7 @@ SCIP_RETCODE master_problem(
     SCIP_CALL(SCIPaddCons(scip, num_segments_cons));
     
     // include pricer 
-    ObjPricerLinFit* pricer_ptr = new ObjPricerLinFit(scip, g, master_nodes, partitioning_cons, num_segments_cons);
+    SegmentPricer* pricer_ptr = new SegmentPricer(scip, g, master_nodes, partitioning_cons, num_segments_cons);
     SCIP_CALL(SCIPincludeObjPricer(scip, pricer_ptr, true));
     
     // activate pricer 

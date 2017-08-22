@@ -13,12 +13,12 @@
 
 using namespace scip;
 
-ObjPricerLinFit::ObjPricerLinFit(SCIP* scip, Graph& g_, std::vector<Graph::vertex_descriptor> master_nodes_, std::vector<SCIP_CONS*> partitioning_cons_, SCIP_CONS* num_segments_cons_) :
+SegmentPricer::SegmentPricer(SCIP* scip, Graph& g_, std::vector<Graph::vertex_descriptor> master_nodes_, std::vector<SCIP_CONS*> partitioning_cons_, SCIP_CONS* num_segments_cons_) :
     ObjPricer(scip, "fitting_pricer", "description", 0, TRUE),
     g(g_), master_nodes(master_nodes_), partitioning_cons(partitioning_cons_), num_segments_cons(num_segments_cons_)
 {}
 
-SCIP_DECL_PRICERINIT(ObjPricerLinFit::scip_init)
+SCIP_DECL_PRICERINIT(SegmentPricer::scip_init)
 {
     for (size_t i = 0; i < partitioning_cons.size(); ++i)
     {
@@ -63,7 +63,7 @@ SCIP_DECL_PRICERINIT(ObjPricerLinFit::scip_init)
     return SCIP_OKAY;
 }
 
-SCIP_RETCODE ObjPricerLinFit::setupVars(SCIP* scip_pricer, Graph::vertex_descriptor t)
+SCIP_RETCODE SegmentPricer::setupVars(SCIP* scip_pricer, Graph::vertex_descriptor t)
 {
     auto probdata = (PricerData*) SCIPgetObjProbData(scip_pricer);
 
@@ -87,7 +87,7 @@ SCIP_RETCODE ObjPricerLinFit::setupVars(SCIP* scip_pricer, Graph::vertex_descrip
     return SCIP_OKAY;
 }
 
-SCIP_DECL_PRICERREDCOST(ObjPricerLinFit::scip_redcost)
+SCIP_DECL_PRICERREDCOST(SegmentPricer::scip_redcost)
 {
     SCIP_Real lambda = SCIPgetDualsolLinear(scip, num_segments_cons);
     
@@ -113,7 +113,7 @@ SCIP_DECL_PRICERREDCOST(ObjPricerLinFit::scip_redcost)
     return SCIP_OKAY;
 }
 
-SCIP_RETCODE ObjPricerLinFit::addPartitionVarFromPricerSCIP(SCIP* scip, SCIP* scip_pricer, SCIP_SOL* sol, Graph::vertex_descriptor t)
+SCIP_RETCODE SegmentPricer::addPartitionVarFromPricerSCIP(SCIP* scip, SCIP* scip_pricer, SCIP_SOL* sol, Graph::vertex_descriptor t)
 {
     auto probdata = (PricerData*) SCIPgetObjProbData(scip_pricer);
     SCIP_Real lambda = SCIPgetDualsolLinear(scip, num_segments_cons);
@@ -134,7 +134,7 @@ SCIP_RETCODE ObjPricerLinFit::addPartitionVarFromPricerSCIP(SCIP* scip, SCIP* sc
     return SCIP_OKAY;
 }
 
-SCIP_RETCODE ObjPricerLinFit::addPartitionVar(SCIP* scip, std::vector<Graph::vertex_descriptor> superpixels, SCIP_Real gamma_P)
+SCIP_RETCODE SegmentPricer::addPartitionVar(SCIP* scip, std::vector<Graph::vertex_descriptor> superpixels, SCIP_Real gamma_P)
 {
     auto vardata = new ObjVardataSegment(superpixels);
     SCIP_VAR* x_P;

@@ -8,13 +8,13 @@ using namespace scip;
  * After each iteration of the master problem, the `scip_redcost` method is called.
  * This method should generate a new column with negative reduced costs and add it to the problem.
  */
-class ObjPricerLinFit : public ObjPricer
+class SegmentPricer : public ObjPricer
 {
 public:
     /**
      * Constructor for the pricer class
      */
-    ObjPricerLinFit(
+    SegmentPricer(
         SCIP* scip, ///< master SCIP instance
         Graph& g_, ///< the graph of superpixels
         std::vector<Graph::vertex_descriptor> master_nodes, ///< master nodes of all segments 
