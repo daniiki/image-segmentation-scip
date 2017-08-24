@@ -25,6 +25,8 @@ public:
         std::vector<std::vector<Graph::vertex_descriptor>> segments, ///< optimal segmentation, where each segment is a vector consisting of the superpixels contained in it
         Graph& g ///< the graph of superpixels 
         );
+
+    uint32_t pixelToSuperpixel(uint32_t x, uint32_t y);
     
 private:
     unsigned int width;

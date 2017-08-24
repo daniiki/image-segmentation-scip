@@ -15,8 +15,10 @@
 #include "vardata.h"
 #include "image.h"
 
-#include <GL/glut.h>
-#include <IL/il.h>
+#include <opencv2/imgproc/imgproc.hpp>
+#include <opencv2/highgui/highgui.hpp>
+
+using namespace cv;
 
 /**
  * Setup and solve the master problem
@@ -133,60 +135,15 @@ SCIP_RETCODE master_problem(
     return SCIP_OKAY;
 }
 
-#define DEFAULT_WIDTH  640
-#define DEFAULT_HEIGHT 480
+std::vector<std::pair<uint32_t, uint32_t>> master_pixels;
 
-int width  = DEFAULT_WIDTH;
-int height = DEFAULT_HEIGHT;
-
-/* Handler for window-repaint event. Called back when the window first appears and
-   whenever the window needs to be re-painted. */
-void display()
+static void onMouse(int event, int x, int y, int f, void*)
 {
-    // Clear color and depth buffers
-       glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-       glMatrixMode(GL_MODELVIEW);     // Operate on model-view matrix
-
-    /* Draw a quad */
-       glBegin(GL_QUADS);
-           glTexCoord2i(0, 0); glVertex2i(0,   0);
-           glTexCoord2i(0, 1); glVertex2i(0,   height);
-           glTexCoord2i(1, 1); glVertex2i(width, height);
-           glTexCoord2i(1, 0); glVertex2i(width, 0);
-       glEnd();
-
-    glutSwapBuffers();
-}
-
-/* Handler for window re-size event. Called back when the window first appears and
-   whenever the window is re-sized with its new width and height */
-void reshape(GLsizei newwidth, GLsizei newheight)
-{
-    // Set the viewport to cover the new window
-       glViewport(0, 0, width=newwidth, height=newheight);
-     glMatrixMode(GL_PROJECTION);
-     glLoadIdentity();
-     glOrtho(0.0, width, height, 0.0, 0.0, 100.0);
-     glMatrixMode(GL_MODELVIEW);
-
-    glutPostRedisplay();
-}
-
-/* Initialize OpenGL Graphics */
-void initGL(int w, int h)
-{
-     glViewport(0, 0, w, h); // use a screen size of WIDTH x HEIGHT
-     glEnable(GL_TEXTURE_2D);     // Enable 2D texturing
-
-    glMatrixMode(GL_PROJECTION);     // Make a simple 2D projection on the entire window
-     glLoadIdentity();
-     glOrtho(0.0, w, h, 0.0, 0.0, 100.0);
-
-     glMatrixMode(GL_MODELVIEW);    // Set the matrix mode to object modeling
-
-     glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
-     glClearDepth(0.0f);
-     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT); // Clear the window
+    if (event == CV_EVENT_LBUTTONDOWN)
+    {
+        std::cout << x << " " << y << std::endl;
+        master_pixels.push_back(std::pair<uint32_t, uint32_t>(x, y));
+    }
 }
 
 /**
@@ -194,76 +151,59 @@ void initGL(int w, int h)
  */
 int main(int argc, char** argv)
 {
-    Image image("src/input.png", 30);
+    Image image("src/input.png", 20);
 
-    // https://www.opengl.org/discussion_boards/showthread.php/181714-Does-opengl-help-in-the-display-of-an-existing-image
-    /* GLUT init */
-    glutInit(&argc, argv);            // Initialize GLUT
-       glutInitDisplayMode(GLUT_DOUBLE); // Enable double buffered mode
-       glutInitWindowSize(DEFAULT_WIDTH, DEFAULT_HEIGHT);   // Set the window's initial width & height
-       glutCreateWindow(argv[0]);      // Create window with the name of the executable
-       glutDisplayFunc(display);       // Register callback handler for window re-paint event
-       glutReshapeFunc(reshape);       // Register callback handler for window re-size event
- 
-    /* OpenGL 2D generic init */
-    initGL(DEFAULT_WIDTH, DEFAULT_HEIGHT);
-
-    ILboolean success;
-    ILuint sup_img;
-    ilInit();
-    ilGenImages(1, &sup_img); /* Generation of one image name */
-    ilBindImage(sup_img); /* Binding of image name */
-    const char* filename = "superpixels.png";
-    success = ilLoadImage(filename); /* Loading of the image filename by DevIL */
-    if (!success)
-        return -1;
-    /* Convert every colour component into unsigned byte. If your image contains alpha channel you can replace IL_RGB with IL_RGBA */
-    success = ilConvertImage(IL_RGBA, IL_UNSIGNED_BYTE);
-    if (!success)
-        return -1;
-
-    GLuint texid;
-    /* OpenGL texture binding of the image loaded by DevIL  */
-    glGenTextures(1, &texid); /* Texture name generation */
-    glBindTexture(GL_TEXTURE_2D, texid); /* Binding of texture name */
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR); /* We will use linear interpolation for magnification filter */
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR); /* We will use linear interpolation for minifying filter */
-    glTexImage2D(GL_TEXTURE_2D, 0, ilGetInteger(IL_IMAGE_BPP), ilGetInteger(IL_IMAGE_WIDTH), ilGetInteger(IL_IMAGE_HEIGHT), 
-        0, ilGetInteger(IL_IMAGE_FORMAT), GL_UNSIGNED_BYTE, ilGetData()); /* Texture specification */
-
-    glutMainLoop();
-
-    /* Main loop */
-    glutMainLoop();
-
-    /* Delete used resources and quit */
-     ilDeleteImages(1, &sup_img); /* Because we have already copied image data into texture data we can release memory used by image. */
-     glDeleteTextures(1, &texid);
+    Mat img = imread("superpixels.png");
+    namedWindow("Select master nodes");
+    setMouseCallback("Select master nodes", onMouse, 0);
+    imshow("Select master nodes", img);
+    waitKey(0);
+    cvDestroyWindow("Select master nodes");
     
-    Graph g = image.graph();
-    size_t n = num_vertices(g);
-    size_t k = 5; // number of segments to cover the image with
-    size_t m = n / k;
-    std::vector<Graph::vertex_descriptor> master_nodes(k);
-    std::vector<std::set<Graph::vertex_descriptor>> inital_segments(k);
-    for (size_t i = 0; i < k; i++)
+    std::vector<Graph::vertex_descriptor> master_nodes;
+    for (auto xy : master_pixels)
     {
-        master_nodes[i] = i * m;
-    }
-    for (size_t i = 0; i < k - 1; i++)
-    {
-        for (size_t j = master_nodes[i]; j < master_nodes[i+1]; ++j)
+        Graph::vertex_descriptor superpixel = image.pixelToSuperpixel(xy.first, xy.second);
+        if (std::find(master_nodes.begin(), master_nodes.end(), superpixel) == master_nodes.end())
         {
-            inital_segments[i].insert(j);
+            master_nodes.push_back(superpixel);
         }
     }
-    for (size_t j = master_nodes[k-1]; j < n; ++j)
+
+    Graph g = image.graph();
+    size_t n = num_vertices(g);
+    std::vector<std::set<Graph::vertex_descriptor>> initial_segments;
+    for (size_t i = 1; i < master_nodes.size(); ++i)
     {
-        inital_segments[k-1].insert(j);
+        std::set<Graph::vertex_descriptor> segment;
+        segment.insert(master_nodes[i]);
+        initial_segments.push_back(segment);
     }
+    std::set<Graph::vertex_descriptor> segment;
+    for (uint32_t i = 0; i < n; ++i)
+    {
+        if (i == master_nodes[0])
+        {
+            segment.insert(i);
+        }
+        else if (std::find(master_nodes.begin(), master_nodes.end(), i) == master_nodes.end())
+        {
+            segment.insert(i);
+        }
+    }
+    initial_segments.push_back(segment);
+
+    std::cout << "Selecting " << initial_segments.size() << " segments" << std::endl;
 
     std::vector<std::vector<Graph::vertex_descriptor>> segments; // the selected segments will be stored in here
-    SCIP_CALL(master_problem(g, master_nodes, inital_segments, segments));
+    SCIP_CALL(master_problem(g, master_nodes, initial_segments, segments));
     image.writeSegments(master_nodes, segments, g);
+
+    img = imread("segments.png");
+    namedWindow("Selected segments");
+    imshow("Selected segments", img);
+    waitKey(0);
+    cvDestroyWindow("Selected segments");
+
     return 0;
 }
