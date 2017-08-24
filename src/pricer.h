@@ -43,6 +43,12 @@ public:
      */
     virtual SCIP_DECL_PRICERREDCOST(scip_redcost);
     
+    std::pair<SCIP_Real, std::vector<Graph::vertex_descriptor>> heuristic(
+        SCIP* scip,
+        Graph::vertex_descriptor master_node,
+        SCIP_Real lambda
+        );
+
     /**
      * Calls `addPartitionVar` with the vector of all superpixels \f$s\f$ for which \f$x_s = 1\f$
      */
@@ -52,7 +58,7 @@ public:
      * Adds a new segment variable to the master problem
      * This also adds the variable to the appropriate existing constraints.
      */
-    SCIP_RETCODE addPartitionVar(SCIP* scip, std::vector<Graph::vertex_descriptor> superpixels, SCIP_Real gamma_P);
+    SCIP_RETCODE addPartitionVar(SCIP* scip, Graph::vertex_descriptor master_node, std::vector<Graph::vertex_descriptor> superpixels);
 
 private:
     Graph& g;
