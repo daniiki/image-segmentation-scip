@@ -30,7 +30,7 @@ MAINFILE	=	$(BINDIR)/$(MAIN)
 MAINSHORTLINK	=	$(BINDIR)/$(MAINNAME)
 MAINOBJFILES	=	$(addprefix $(OBJDIR)/,$(MAINOBJ))
 
-LDFLAGS     += -lpng -lgmp -lvl
+LDFLAGS     += -lpng -lgmp -lvl `pkg-config --libs opencv`
 
 #-----------------------------------------------------------------------------
 # Rules

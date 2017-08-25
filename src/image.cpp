@@ -176,3 +176,8 @@ void Image::writeSegments(std::vector<Graph::vertex_descriptor> T, std::vector<s
     std::cout << "write segments.png" << std::endl;
     pngimage.write("segments.png");
 }
+
+uint32_t Image::pixelToSuperpixel(uint32_t x, uint32_t y)
+{
+    return segmentation[x + y * width];
+}

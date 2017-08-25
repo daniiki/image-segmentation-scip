@@ -13,12 +13,12 @@
 
 using namespace scip;
 
-ObjPricerLinFit::ObjPricerLinFit(SCIP* scip, Graph& g_, std::vector<Graph::vertex_descriptor> master_nodes_, std::vector<SCIP_CONS*> partitioning_cons_, SCIP_CONS* num_segments_cons_) :
+SegmentPricer::SegmentPricer(SCIP* scip, Graph& g_, std::vector<Graph::vertex_descriptor> master_nodes_, std::vector<SCIP_CONS*> partitioning_cons_, SCIP_CONS* num_segments_cons_) :
     ObjPricer(scip, "fitting_pricer", "description", 0, TRUE),
     g(g_), master_nodes(master_nodes_), partitioning_cons(partitioning_cons_), num_segments_cons(num_segments_cons_)
 {}
 
-SCIP_DECL_PRICERINIT(ObjPricerLinFit::scip_init)
+SCIP_DECL_PRICERINIT(SegmentPricer::scip_init)
 {
     for (size_t i = 0; i < partitioning_cons.size(); ++i)
     {
@@ -63,7 +63,7 @@ SCIP_DECL_PRICERINIT(ObjPricerLinFit::scip_init)
     return SCIP_OKAY;
 }
 
-SCIP_RETCODE ObjPricerLinFit::setupVars(SCIP* scip_pricer, Graph::vertex_descriptor t)
+SCIP_RETCODE SegmentPricer::setupVars(SCIP* scip_pricer, Graph::vertex_descriptor t)
 {
     auto probdata = (PricerData*) SCIPgetObjProbData(scip_pricer);
 
@@ -87,25 +87,36 @@ SCIP_RETCODE ObjPricerLinFit::setupVars(SCIP* scip_pricer, Graph::vertex_descrip
     return SCIP_OKAY;
 }
 
-SCIP_DECL_PRICERREDCOST(ObjPricerLinFit::scip_redcost)
+SCIP_DECL_PRICERREDCOST(SegmentPricer::scip_redcost)
 {
     SCIP_Real lambda = SCIPgetDualsolLinear(scip, num_segments_cons);
     
     for (size_t i = 0; i < master_nodes.size(); ++i)
     {
         auto probdata = (PricerData*) SCIPgetObjProbData(scip_pricers[i]);
-        SCIP_CALL(SCIPfreeTransform(scip_pricers[i])); // reset transformation, solution data and SCIP stage
-        for (auto s = vertices(g); s.first != s.second; ++s.first)
+
+        auto p = heuristic(scip, master_nodes[i], lambda);
+        if (SCIPisDualfeasNegative(scip, p.first))
         {
-            SCIP_Real mu_s = SCIPgetDualsolLinear(scip, partitioning_cons[*s.first]);
-            SCIP_CALL(SCIPchgVarObj(scip_pricers[i], probdata->x[*s.first], -mu_s + std::abs(g[master_nodes[i]].color - g[*s.first].color)));
+            std::cout << "heuristic successful: " << p.second.size() << std::endl;
+            std::cout << "reduced costs: " << p.first << std::endl;
+            SCIP_CALL(addPartitionVar(scip, master_nodes[i], p.second));
         }
-        SCIP_CALL(SCIPsolve(scip_pricers[i]));
-        SCIP_SOL* sol = SCIPgetBestSol(scip_pricers[i]);
-        if (SCIPisDualfeasNegative(scip, SCIPgetSolOrigObj(scip_pricers[i], sol) - lambda))
+        else
         {
-            //TODO compare SolOrigObj to sum -mu_s + |y_t - y_s|
-            SCIP_CALL(addPartitionVarFromPricerSCIP(scip, scip_pricers[i], sol, master_nodes[i]));
+            SCIP_CALL(SCIPfreeTransform(scip_pricers[i])); // reset transformation, solution data and SCIP stage
+            for (auto s = vertices(g); s.first != s.second; ++s.first)
+            {
+                SCIP_Real mu_s = SCIPgetDualsolLinear(scip, partitioning_cons[*s.first]);
+                SCIP_CALL(SCIPchgVarObj(scip_pricers[i], probdata->x[*s.first], -mu_s + std::abs(g[master_nodes[i]].color - g[*s.first].color)));
+            }
+            SCIP_CALL(SCIPsolve(scip_pricers[i]));
+            SCIP_SOL* sol = SCIPgetBestSol(scip_pricers[i]);
+            if (SCIPisDualfeasNegative(scip, SCIPgetSolOrigObj(scip_pricers[i], sol) - lambda))
+            {
+                //TODO compare SolOrigObj to sum -mu_s + |y_t - y_s|
+                SCIP_CALL(addPartitionVarFromPricerSCIP(scip, scip_pricers[i], sol, master_nodes[i]));
+            }
         }
     }
     *result = SCIP_SUCCESS; // at least one improving variable was found,
@@ -113,32 +124,78 @@ SCIP_DECL_PRICERREDCOST(ObjPricerLinFit::scip_redcost)
     return SCIP_OKAY;
 }
 
-SCIP_RETCODE ObjPricerLinFit::addPartitionVarFromPricerSCIP(SCIP* scip, SCIP* scip_pricer, SCIP_SOL* sol, Graph::vertex_descriptor t)
+std::pair<SCIP_Real, std::vector<Graph::vertex_descriptor>> SegmentPricer::heuristic(SCIP* scip, Graph::vertex_descriptor master_node, SCIP_Real lambda)
+{
+    std::vector<Graph::vertex_descriptor> superpixels;
+    SCIP_Real redcost = -SCIPgetDualsolLinear(scip, partitioning_cons[master_node]) - lambda;
+    superpixels.push_back(master_node);
+    while (superpixels.size() < _n - master_nodes.size() + 1)
+    {
+        SCIP_Real minimum = SCIPinfinity(scip);
+        Graph::vertex_descriptor minimizer;
+        for (auto superpixel : superpixels)
+        {
+            for (auto p = out_edges(superpixel, g); p.first != p.second; ++p.first)
+            {
+                assert(boost::source(*p.first, g) == superpixel);
+                Graph::vertex_descriptor target = boost::target(*p.first, g);
+                // the target should not already be in the segment
+                if (std::find(superpixels.begin(), superpixels.end(), target) == superpixels.end()
+                    && std::find(master_nodes.begin(), master_nodes.end(), target) == master_nodes.end())
+                {
+                    SCIP_Real mu_s = SCIPgetDualsolLinear(scip, partitioning_cons[target]);
+                    if (SCIPisLT(scip, -mu_s + std::abs(g[master_node].color - g[target].color), minimum))
+                    {
+                        minimum = -mu_s + std::abs(g[master_node].color - g[target].color);
+                        minimizer = target;
+                    }
+                }
+            }
+        }
+        if (SCIPisNegative(scip, minimum)
+            || !SCIPisDualfeasNegative(scip, redcost))
+        {
+            superpixels.push_back(minimizer);
+            redcost += minimum;
+        }
+        else
+        {
+            break;
+        }
+    }
+    return std::pair<SCIP_Real, std::vector<Graph::vertex_descriptor>>(redcost, superpixels);
+}
+
+SCIP_RETCODE SegmentPricer::addPartitionVarFromPricerSCIP(SCIP* scip, SCIP* scip_pricer, SCIP_SOL* sol, Graph::vertex_descriptor t)
 {
     auto probdata = (PricerData*) SCIPgetObjProbData(scip_pricer);
     SCIP_Real lambda = SCIPgetDualsolLinear(scip, num_segments_cons);
 
     std::vector<Graph::vertex_descriptor> superpixels;
-    SCIP_Real gamma_P = 0.0;
     for (auto s = vertices(g); s.first != s.second; ++s.first)
     {
         if (SCIPisEQ(scip_pricer, SCIPgetSolVal(scip_pricer, sol, probdata->x[*s.first]), 1.0))
         {
             superpixels.push_back(*s.first);
-            gamma_P += std::abs(g[t].color - g[*s.first].color);
         }
     }
     std::cout << "pricer successful: " << superpixels.size() << std::endl;
     std::cout << "reduced costs: " <<  SCIPgetSolOrigObj(scip_pricer, sol) - lambda << std::endl;
-    SCIP_CALL(addPartitionVar(scip, superpixels, gamma_P));
+    SCIP_CALL(addPartitionVar(scip, t, superpixels));
     return SCIP_OKAY;
 }
 
-SCIP_RETCODE ObjPricerLinFit::addPartitionVar(SCIP* scip, std::vector<Graph::vertex_descriptor> superpixels, SCIP_Real gamma_P)
+SCIP_RETCODE SegmentPricer::addPartitionVar(SCIP* scip, Graph::vertex_descriptor master_node, std::vector<Graph::vertex_descriptor> superpixels)
 {
+    SCIP_Real error_P = 0.0;
+    for (auto s : superpixels)
+    {
+        error_P += std::abs(g[master_node].color - g[s].color);
+    }
+
     auto vardata = new ObjVardataSegment(superpixels);
     SCIP_VAR* x_P;
-    SCIP_CALL(SCIPcreateObjVar(scip, & x_P, "x_P", 0.0, 1.0, gamma_P, SCIP_VARTYPE_BINARY, FALSE, FALSE, vardata, TRUE));
+    SCIP_CALL(SCIPcreateObjVar(scip, & x_P, "x_P", 0.0, 1.0, error_P, SCIP_VARTYPE_BINARY, FALSE, FALSE, vardata, TRUE));
     SCIP_CALL(SCIPaddPricedVar(scip, x_P, 1.0));
 
     // add coefficients to constraints (of the master problem)

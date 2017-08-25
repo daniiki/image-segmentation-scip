@@ -15,6 +15,11 @@
 #include "vardata.h"
 #include "image.h"
 
+#include <opencv2/imgproc/imgproc.hpp>
+#include <opencv2/highgui/highgui.hpp>
+
+using namespace cv;
+
 /**
  * Setup and solve the master problem
  */
@@ -37,7 +42,7 @@ SCIP_RETCODE master_problem(
     SCIP_CALL(SCIPsetObjsense(scip, SCIP_OBJSENSE_MINIMIZE));
     
     std::vector<SCIP_VAR*> vars;
-    // vars[i] belongs to partition partitions[i]
+    // vars[i] belongs to segment initial_segments[i]
     for (auto segment : initial_segments)
     {
         SCIP_VAR* var;
@@ -93,7 +98,7 @@ SCIP_RETCODE master_problem(
     SCIP_CALL(SCIPaddCons(scip, num_segments_cons));
     
     // include pricer 
-    ObjPricerLinFit* pricer_ptr = new ObjPricerLinFit(scip, g, master_nodes, partitioning_cons, num_segments_cons);
+    SegmentPricer* pricer_ptr = new SegmentPricer(scip, g, master_nodes, partitioning_cons, num_segments_cons);
     SCIP_CALL(SCIPincludeObjPricer(scip, pricer_ptr, true));
     
     // activate pricer 
@@ -130,36 +135,75 @@ SCIP_RETCODE master_problem(
     return SCIP_OKAY;
 }
 
+std::vector<std::pair<uint32_t, uint32_t>> master_pixels;
+
+static void onMouse(int event, int x, int y, int f, void*)
+{
+    if (event == CV_EVENT_LBUTTONDOWN)
+    {
+        std::cout << x << " " << y << std::endl;
+        master_pixels.push_back(std::pair<uint32_t, uint32_t>(x, y));
+    }
+}
+
 /**
  * The main function reads the image, retrieves the graph of superpixels, solves the master problem and outputs the solution.
  */
-int main()
+int main(int argc, char** argv)
 {
-    Image image("src/input.png", 30);
-    Graph g = image.graph();
-    size_t n = num_vertices(g);
-    size_t k = 5; // number of segments to cover the image with
-    size_t m = n / k;
-    std::vector<Graph::vertex_descriptor> master_nodes(k);
-    std::vector<std::set<Graph::vertex_descriptor>> inital_segments(k);
-    for (size_t i = 0; i < k; i++)
+    Image image("src/input.png", 20);
+
+    Mat img = imread("superpixels.png");
+    namedWindow("Select master nodes");
+    setMouseCallback("Select master nodes", onMouse, 0);
+    imshow("Select master nodes", img);
+    waitKey(0);
+    cvDestroyWindow("Select master nodes");
+    
+    std::vector<Graph::vertex_descriptor> master_nodes;
+    for (auto xy : master_pixels)
     {
-        master_nodes[i] = i * m;
-    }
-    for (size_t i = 0; i < k - 1; i++)
-    {
-        for (size_t j = master_nodes[i]; j < master_nodes[i+1]; ++j)
+        Graph::vertex_descriptor superpixel = image.pixelToSuperpixel(xy.first, xy.second);
+        if (std::find(master_nodes.begin(), master_nodes.end(), superpixel) == master_nodes.end())
         {
-            inital_segments[i].insert(j);
+            master_nodes.push_back(superpixel);
         }
     }
-    for (size_t j = master_nodes[k-1]; j < n; ++j)
+
+    Graph g = image.graph();
+    size_t n = num_vertices(g);
+    std::vector<std::set<Graph::vertex_descriptor>> initial_segments;
+    for (size_t i = 1; i < master_nodes.size(); ++i)
     {
-        inital_segments[k-1].insert(j);
+        std::set<Graph::vertex_descriptor> segment;
+        segment.insert(master_nodes[i]);
+        initial_segments.push_back(segment);
     }
+    std::set<Graph::vertex_descriptor> segment;
+    for (uint32_t i = 0; i < n; ++i)
+    {
+        if (i == master_nodes[0])
+        {
+            segment.insert(i);
+        }
+        else if (std::find(master_nodes.begin(), master_nodes.end(), i) == master_nodes.end())
+        {
+            segment.insert(i);
+        }
+    }
+    initial_segments.push_back(segment);
+
+    std::cout << "Selecting " << initial_segments.size() << " segments" << std::endl;
 
     std::vector<std::vector<Graph::vertex_descriptor>> segments; // the selected segments will be stored in here
-    SCIP_CALL(master_problem(g, master_nodes, inital_segments, segments));
+    SCIP_CALL(master_problem(g, master_nodes, initial_segments, segments));
     image.writeSegments(master_nodes, segments, g);
+
+    img = imread("segments.png");
+    namedWindow("Selected segments");
+    imshow("Selected segments", img);
+    waitKey(0);
+    cvDestroyWindow("Selected segments");
+
     return 0;
 }
