@@ -62,7 +62,7 @@
                 \caption{Master nodes and segments}
             \end{center}
         \end{figure}
-    \end{frame}	
+    \end{frame}
 
     \begin{frame}{Master problem}
         Given data in the theoretical formulation of the master problem:
@@ -209,11 +209,11 @@
         We started off of these and implemented the desired functionality.
     \end{frame}
 
-    \begin{frame}[fragile]{Reading the image}
-        The image is first read from a PNG file using libpng and png++.
-        Then, the image is segmented into superpixels using an algorithm called SLIC. %TODO reference SLIC
-        
-        \begin{minted}[fontsize=\tiny]{C++}
+\begin{frame}[fragile]{Reading the image}
+The image is first read from a PNG file using libpng and png++.
+Then, the image is segmented into superpixels using an algorithm called SLIC. %TODO reference SLIC
+
+\begin{minted}[fontsize=\tiny]{C++}
 png::image<png::gray_pixel> pngimage(filename);
 float* image = new float[pngimage.get_width() * pngimage.get_height()];
 for (png::uint_32 x = 0; x < pngimage.get_width(); ++x)
@@ -226,13 +226,13 @@ for (png::uint_32 x = 0; x < pngimage.get_width(); ++x)
 
 segmentation = new vl_uint32[imagesize];
 vl_slic_segment(segmentation, image, pngimage.get_width(), pngimage.get_height(), ...);
-        \end{minted}
-    \end{frame}
-    
-    \begin{frame}[fragile]{Creating the graph}
-        To representing the graph of superpixels, we use the Boost Graph Library.
-        
-		\begin{minted}[fontsize=\tiny]{C++}
+\end{minted}
+\end{frame}
+
+\begin{frame}[fragile]{Creating the graph}
+To representing the graph of superpixels, we use the Boost Graph Library.
+
+\begin{minted}[fontsize=\tiny]{C++}
 Graph g(superpixelcount);
 for (auto p = vertices(g); p.first != p.second; ++p.first)
 {
@@ -257,20 +257,20 @@ for (png::uint_32 x = 0; x < width; ++x)
     ...
   }
 }
-		\end{minted}
-	\end{frame}
-	
-	\begin{frame}[fragile]{Master problem definition}
-        First, we need to create a SCIP instance.
-        \begin{minted}[fontsize=\tiny]{C++}
+\end{minted}
+\end{frame}
+
+\begin{frame}[fragile]{Master problem definition}
+First, we need to create a SCIP instance.
+\begin{minted}[fontsize=\tiny]{C++}
 SCIP* scip;
 SCIP_CALL(SCIPcreate(&scip));
 SCIP_CALL(SCIPcreateProb(scip, "master_problem", ...));
 SCIP_CALL(SCIPsetObjsense(scip, SCIP_OBJSENSE_MINIMIZE));
-        \end{minted}
-        
-        We start with initial segments which form a partitioning.
-        \begin{minted}[fontsize=\tiny]{C++}
+\end{minted}
+
+We start with initial segments which form a partitioning.
+\begin{minted}[fontsize=\tiny]{C++}
 std::vector<SCIP_VAR*> vars;
 for (auto segment : initial_segments)
 {
@@ -281,12 +281,12 @@ for (auto segment : initial_segments)
   SCIP_CALL(SCIPaddVar(scip, var));
   vars.push_back(var);
 }
-        \end{minted}
-    \end{frame}
+\end{minted}
+\end{frame}
 
-    \begin{frame}[fragile]{Adding constraints}
-        Finally, we add the partitioning constraints.
-        \begin{minted}[fontsize=\tiny]{C++}
+\begin{frame}[fragile]{Adding constraints}
+Finally, we add the partitioning constraints.
+\begin{minted}[fontsize=\tiny]{C++}
 std::vector<SCIP_CONS*> partitioning_cons;
 for (auto p = vertices(g); p.first != p.second; ++p.first)
 {
@@ -305,41 +305,67 @@ for (auto p = vertices(g); p.first != p.second; ++p.first)
 
 SCIP_CONS* num_segments_cons;
 ...
-        \end{minted}
-	\end{frame}
+\end{minted}
+\end{frame}
 
-    \begin{frame}[fragile]{Pricer callback}
-        \begin{minted}[fontsize=\tiny]{C++}
+\begin{frame}[fragile]{Pricer callback}
+\begin{minted}[fontsize=\tiny]{C++}
 SCIP_DECL_PRICERREDCOST(scip_redcost)
 {
   SCIP_Real lambda = SCIPgetDualsolLinear(scip, num_segments_cons);
-
   for (size_t i = 0; i < master_nodes.size(); ++i)
   {
-    auto probdata = (PricerData*) SCIPgetObjProbData(scip_pricers[i]);
-    for (auto s = vertices(g); s.first != s.second; ++s.first)
+    auto p = heuristic(scip, master_nodes[i], lambda); // returns pair<redcost, superpixels>
+    if (SCIPisDualfeasNegative(scip, p.first))
+      SCIP_CALL(addPartitionVar(scip, master_nodes[i], p.second));
+    else
     {
-      SCIP_Real mu_s = SCIPgetDualsolLinear(scip, partitioning_cons[*s.first]);
-      SCIP_CALL(SCIPchgVarObj(scip_pricers[i], probdata->x[*s.first],
-        -mu_s + std::abs(g[master_nodes[i]].color - g[*s.first].color)));
-    }
-    SCIP_CALL(SCIPsolve(scip_pricers[i]));
-    SCIP_SOL* sol = SCIPgetBestSol(scip_pricers[i]);
-    if (SCIPisDualfeasNegative(scip, SCIPgetSolOrigObj(scip_pricers[i], sol) - lambda))
-    {
-      SCIP_CALL(addSegmentVar(scip, scip_pricers[i], sol, master_nodes[i]));
+      for (auto s = vertices(g); s.first != s.second; ++s.first)
+      {
+        SCIP_Real mu_s = SCIPgetDualsolLinear(scip, partitioning_cons[*s.first]);
+        SCIP_CALL(SCIPchgVarObj(scip_pricers[i], x[*s.first],
+          -mu_s + std::abs(g[master_nodes[i]].color - g[*s.first].color)));
+      }
+      SCIP_CALL(SCIPsolve(scip_pricers[i]));
+      SCIP_SOL* sol = SCIPgetBestSol(scip_pricers[i]);
+      if (SCIPisDualfeasNegative(scip, SCIPgetSolOrigObj(scip_pricers[i], sol) - lambda))
+      {
+        SCIP_CALL(addPartitionVarFromPricerSCIP(scip, scip_pricers[i], sol, master_nodes[i]));
+      }
     }
   }
   *result = SCIP_SUCCESS; // at least one improving variable was found,
                           // or it is ensured that no such variable exists
   return SCIP_OKAY;
 }
-        \end{minted}
-    \end{frame}
+\end{minted}
+\end{frame}
 
-    \begin{frame}[fragile]{Constraint handler callback}
-        First, we create the subgraph of all superpixels in the new component. 
-        \begin{minted}[fontsize=\tiny]{C++}
+\begin{frame}{Pricing heuristic}
+To make the solving process faster,
+a heuristic to find segments with negative reduced costs ($rc$) was added.
+
+\begin{algorithm}[H]
+    \caption{Simple pricing heuristic}
+    \begin{algorithmic}[1]
+        \State $P\gets\{t\}$
+        \State Let $s\in\delta(P)$ s.t. $rc(P\cup\{s\})$ is minimal. \label{nextnode}
+        \If {$rc(P)\geq0$}
+        \State $P\gets P\cup\{s\}$
+        \State \Goto{nextnode}
+        \ElsIf {$rc(P\cup\{s\}) < rc(P)$}
+        \State $P\gets P\cup\{s\}$
+        \State \Goto{nextnode}
+        \Else
+        \State \Return $P$
+        \EndIf
+    \end{algorithmic}
+\end{algorithm}
+\end{frame}
+
+\begin{frame}[fragile]{Constraint handler callback}
+First, we create the subgraph of all superpixels in the new component. 
+\begin{minted}[fontsize=\tiny]{C++}
 Graph& subgraph = g.create_subgraph();
 std::vector<int> component(num_vertices(g));
 for (auto p = vertices(g); p.first != p.second; ++p.first)
@@ -350,12 +376,11 @@ for (auto p = vertices(g); p.first != p.second; ++p.first)
   }
 }
 size_t num_components = connected_components(subgraph, &component[0]);
-         \end{minted}
-        
-    \end{frame}
+ \end{minted}
+\end{frame}
 
-    \begin{frame}[fragile]{Constraint handler callback}
-        \begin{minted}[fontsize=\tiny]{C++}
+\begin{frame}[fragile]{Constraint handler callback}
+\begin{minted}[fontsize=\tiny]{C++}
 for (int i = 0; i < num_components; i++)
 {
   if (i == component[master_node])
@@ -384,11 +409,11 @@ for (int i = 0; i < num_components; i++)
     SCIP_CALL(SCIPaddCut(scip, sol, row, ...));
   }
 }
-        \end{minted}
-    \end{frame}
+\end{minted}
+\end{frame}
 
-    \begin{frame}[fragile]{Solve master problem}
-        \begin{minted}[fontsize=\tiny]{C++}
+\begin{frame}[fragile]{Solve master problem}
+\begin{minted}[fontsize=\tiny]{C++}
 // include pricer 
 ObjPricerLinFit* pricer_ptr = new SegmentPricer(scip, g, ...);
 SCIP_CALL(SCIPincludeObjPricer(scip, pricer_ptr, true));
@@ -411,32 +436,10 @@ for (int i = 0; i < SCIPgetNVars(scip); ++i)
     segments.push_back(vardata->getSuperpixels());
   }
 }
-        \end{minted}
-    \end{frame}
+\end{minted}
+\end{frame}
         
 	\section{Possible improvements}
-    \begin{frame}{Pricing heuristic}
-        To make the solving process faster,
-        a heuristic to find segments with negative reduced costs ($rc$) should be added.
-        
-        \begin{algorithm}[H]
-            \caption{Simple pricing heuristic}
-            \begin{algorithmic}[1]
-                \State $P\gets\{t\}$
-                \State Let $s\in\delta(P)$ s.t. $rc(P\cup\{s\})$ is minimal. \label{nextnode}
-                \If {$rc(P)\geq0$}
-                    \State $P\gets P\cup\{s\}$
-                    \State \Goto{nextnode}
-                \ElsIf {$rc(P\cup\{s\}) < rc(P)$}
-                    \State $P\gets P\cup\{s\}$
-                    \State \Goto{nextnode}
-                \Else
-                    \State \Return $P$
-                \EndIf
-            \end{algorithmic}
-        \end{algorithm}
-    \end{frame}
-
     \begin{frame}{Branching rules}
         Ideally, one would develop branching rules specially for the master and pricing problem.     
         

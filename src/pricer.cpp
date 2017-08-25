@@ -93,9 +93,7 @@ SCIP_DECL_PRICERREDCOST(SegmentPricer::scip_redcost)
     
     for (size_t i = 0; i < master_nodes.size(); ++i)
     {
-        auto probdata = (PricerData*) SCIPgetObjProbData(scip_pricers[i]);
-
-        auto p = heuristic(scip, master_nodes[i], lambda);
+        auto p = heuristic(scip, master_nodes[i], lambda); // returns pair<redcost, superpixels>
         if (SCIPisDualfeasNegative(scip, p.first))
         {
             std::cout << "heuristic successful: " << p.second.size() << std::endl;
@@ -104,6 +102,7 @@ SCIP_DECL_PRICERREDCOST(SegmentPricer::scip_redcost)
         }
         else
         {
+            auto probdata = (PricerData*) SCIPgetObjProbData(scip_pricers[i]);
             SCIP_CALL(SCIPfreeTransform(scip_pricers[i])); // reset transformation, solution data and SCIP stage
             for (auto s = vertices(g); s.first != s.second; ++s.first)
             {
