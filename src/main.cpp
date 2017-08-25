@@ -11,6 +11,7 @@
 
 #include <iostream>
 #include <math.h>
+#include <string>
 
 #include "vardata.h"
 #include "image.h"
@@ -151,7 +152,12 @@ static void onMouse(int event, int x, int y, int f, void*)
  */
 int main(int argc, char** argv)
 {
-    Image image("src/input.png", 20);
+    if (argc != 3)
+    {
+        std::cout << "Usage: bin/fopra input.png num_superpixels" << std::endl;
+        return 1;
+    }
+    Image image(argv[1], std::stoi(argv[2]));
 
     Mat img = imread("superpixels.png");
     namedWindow("Select master nodes");
