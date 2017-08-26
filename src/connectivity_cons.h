@@ -69,14 +69,14 @@ private:
         SCIP* scip, ///< pricer SCIP instance
         SCIP_SOL* sol, ///< current primal solution or NULL
         Graph& subgraph, ///< subgraph with all superpixels for which \f$x_s = 1\f$
-        std::vector<int>& component ///< `component[s]` will be the connected component the superpixel s belongs to
+        std::vector<int>& component ///< `component[s]` will be the index of the connected component the superpixel s belongs to
     );
 
     /**
-     * Adds cutting plane, if possible
+     * Adds cutting plane, if possible.
      * If the current solution is infeasible, a cutting plane of the following form is added
-     * for some superpixel \f$s\f$ in a component that is not connected to the master node \f$t\f$:
-     * \f[\sum_{s'\in\delta(s)}x_{s'} \geq x_s\f]
+     * for every superpixel \f$s\f$ in a component \f$C\f$ that is not connected to the master node \f$t\f$:
+     * \f[\sum_{s'\in\delta(C)}x_{s'} \geq x_s\f]
      */
     SCIP_RETCODE sepaConnectivity(
         SCIP* scip,
