@@ -95,4 +95,8 @@ $(OBJDIR)/%.o:	$(SRCDIR)/%.cpp
 		@echo "-> compiling $@"
 		$(CXX) $(FLAGS) $(OFLAGS) $(BINOFLAGS) $(CXXFLAGS) -c $< $(CXX_o)$@
 
+.PHONY: doc
+doc:
+	cd doc; doxygen
+
 #---- EOF --------------------------------------------------------------------
