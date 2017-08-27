@@ -3,5 +3,11 @@
 !Makefile
 !Doxyfile
 !*/
-!links
+src/depend*
+superpixels.png
+segments.png
 a.out
+scipoptsuite-*/
+doc/
+obj/
+bin/
