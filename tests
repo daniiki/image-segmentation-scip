@@ -1,0 +1,5 @@
+bin/fopra input1.png 110
+bin/fopra input2.png 35
+bin/fopra input3.png 65
+bin/fopra input4.png 20
+
