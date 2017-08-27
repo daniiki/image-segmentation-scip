@@ -437,6 +437,18 @@ for (int i = 0; i < SCIPgetNVars(scip); ++i)
 \end{frame}
         
 	\section{Possible improvements}
+    \begin{frame}{Pricer callback}
+        The pricer callback could be improved in several ways:
+        \begin{itemize}
+            \item Do not generate $k$ segments each time
+            \item Begin with a certain master node, based on the last iteration
+            \item Run all $k$ heuristics before solving exactly
+            \item Additional heuristic that generates larger segments
+        \end{itemize}
+    
+        Doing this would need a lot of testing to choose the best options.
+    \end{frame}
+    
     \begin{frame}{Branching rules}
         Ideally, one would develop branching rules specially for the master and pricing problem.     
         
