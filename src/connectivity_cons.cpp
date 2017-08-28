@@ -53,7 +53,7 @@ SCIP_RETCODE ConnectivityCons::sepaConnectivity(
 {
     Graph& subgraph = g.create_subgraph();
     std::vector<int> component(num_vertices(g));
-    size_t num_components = findComponents(scip, sol, subgraph, component);
+    int num_components = findComponents(scip, sol, subgraph, component);
     if (num_components == 1)
     {
         *result = SCIP_DIDNOTFIND;

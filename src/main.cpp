@@ -129,8 +129,7 @@ SCIP_RETCODE master_problem(
         {
             add_vertex(superpixel, subgraph);
         }
-        size_t num_components = connected_components(subgraph, &component[0]);
-        assert(num_components == 1);
+        assert(connected_components(subgraph, &component[0]) == 1);
     }
     
     return SCIP_OKAY;
