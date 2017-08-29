@@ -221,13 +221,13 @@ for (png::uint_32 x = 0; x < pngimage.get_width(); ++x)
   }
 }
 
-segmentation = new vl_uint32[imagesize];
+segmentation = new vl_uint32[pngimage.get_width() * pngimage.get_height()];
 vl_slic_segment(segmentation, image, pngimage.get_width(), pngimage.get_height(), ...);
 \end{minted}
 \end{frame}
 
 \begin{frame}[fragile]{Creating the graph}
-To representing the graph of superpixels, we use the Boost Graph Library.
+To represent the graph of superpixels, we use the Boost Graph Library.
 
 \begin{minted}[fontsize=\tiny]{C++}
 Graph g(superpixelcount);
@@ -288,6 +288,7 @@ std::vector<SCIP_CONS*> partitioning_cons;
 for (auto p = vertices(g); p.first != p.second; ++p.first)
 {
   SCIP_CONS* cons1;
+  // 1.0 <= ... <= 1.0
   SCIP_CALL(SCIPcreateConsLinear(scip, &cons1, "first", 0, NULL, NULL, 1.0, 1.0, ...));
   for (size_t i = 0; i != initial_segments.size(); ++i)
   {
@@ -326,9 +327,7 @@ SCIP_DECL_PRICERREDCOST(scip_redcost)
       SCIP_CALL(SCIPsolve(scip_pricers[i]));
       SCIP_SOL* sol = SCIPgetBestSol(scip_pricers[i]);
       if (SCIPisDualfeasNegative(scip, SCIPgetSolOrigObj(scip_pricers[i], sol) - lambda))
-      {
-        SCIP_CALL(addPartitionVarFromPricerSCIP(scip, scip_pricers[i], sol, master_nodes[i]));
-      }
+        SCIP_CALL(addPartitionVarFromPricer(scip, scip_pricers[i], sol, master_nodes[i]));
     }
   }
   *result = SCIP_SUCCESS; // at least one improving variable was found,
@@ -482,7 +481,15 @@ for (int i = 0; i < SCIPgetNVars(scip); ++i)
         \end{figure}
     \end{frame}
 
+    \begin{frame}{Documentation}
+        \small\url{https://daniiki.github.io/image-segmentation-scip}
+    \end{frame}
+
     \begin{frame}[standout]
         Demo
+    \end{frame}
+
+    \begin{frame}{Git repository}
+        \small\url{https://github.com/daniiki/image-segmentation-scip}
     \end{frame}
 \end{document}
