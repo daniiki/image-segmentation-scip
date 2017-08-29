@@ -1,5 +1,5 @@
 # Image segmentation using SCIP
-This is the code for an advanced practical, done at the Univerity of Heidelberg in 2017.
+This is the code for an advanced practical, completed at the Univerity of Heidelberg in 2017.
 
 # Deepndencies
 - [SCIP](http://scip.zib.de), which in turn needs [GMP](https://github.com/daniiki/image-segmentation-scip.git)
@@ -7,14 +7,14 @@ This is the code for an advanced practical, done at the Univerity of Heidelberg 
 - [VLFeat](http://www.vlfeat.org/)
 - OpenCV
 
-If your're a lazy person and happen to be a Nix user, just use the provides `shell.nix` file.
+If your're a lazy person and happen to be a Nix user, just use the provided `shell.nix` file.
 
 # Installation
 Clone this repository using
 ```
 git clone https://github.com/daniiki/image-segmentation-scip.git
 ```
-Then you need to dowlnload the scipoptsuite from https://github.com/daniiki/image-segmentation-scip.git and untar the archive.
+Then you need to dowlnload the scipoptsuite from http://scip.zib.de/#download and untar the archive.
 Make sure to place the `scipoptsuite-4.x.x` sirectory inside of the root folder of this project.
 Finally, you can compile SCIP:
 ```
