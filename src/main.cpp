@@ -158,7 +158,7 @@ int main(int argc, char** argv)
     }
     Image image(argv[1], std::stoi(argv[2]));
 
-    Mat img = imread("superpixels.png");
+    Mat img = imread("superpixels_avgcolor.png");
     namedWindow("Select master nodes");
     setMouseCallback("Select master nodes", onMouse, 0);
     imshow("Select master nodes", img);

@@ -5,6 +5,7 @@
 !*/
 src/depend*
 superpixels.png
+superpixels_avgcolor.png
 segments.png
 a.out
 scipoptsuite-*/

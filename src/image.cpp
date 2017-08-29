@@ -60,6 +60,7 @@ Image::Image(std::string filename_, int n) : filename(filename_)
         avgcolor[i] /= numpixels[i];
     }
     
+    png::image<png::gray_pixel> pngimage2(pngimage);
     for (png::uint_32 x = 0; x < pngimage.get_width(); ++x)
     {
         for (png::uint_32 y = 0; y < pngimage.get_height(); ++y)
@@ -72,26 +73,31 @@ Image::Image(std::string filename_, int n) : filename(filename_)
             if (x + 1 < width && segmentation[current] != segmentation[right])
             {
                 pngimage[y][x] = 0; // set pixel at the border to black
+                pngimage2[y][x] = 0; // set pixel at the border to black
             }
             else if (x >= 1 && segmentation[current] != segmentation[left])
             {
                 pngimage[y][x] = 0; // set pixel at the border to black
+                pngimage2[y][x] = 0; // set pixel at the border to black
             }
             else if (y + 1 < height && segmentation[current] != segmentation[below])
             {
                 pngimage[y][x] = 0; // set pixel at the border to black
+                pngimage2[y][x] = 0; // set pixel at the border to black
             }
             else if (y  >= 1 && segmentation[current] != segmentation[above])
             {
                 pngimage[y][x] = 0; // set pixel at the border to black
+                pngimage2[y][x] = 0; // set pixel at the border to black
             }
             else
             {
-                pngimage[y][x] = avgcolor[segmentation[x + y * pngimage.get_width()]];
+                pngimage2[y][x] = avgcolor[segmentation[x + y * pngimage.get_width()]];
             }
         }
     }
     pngimage.write("superpixels.png");
+    pngimage2.write("superpixels_avgcolor.png");
 }
 
 Graph Image::graph()
@@ -158,7 +164,7 @@ void Image::writeSegments(std::vector<Graph::vertex_descriptor> T, std::vector<s
         }
     }
     
-    png::image<png::gray_pixel> pngimage(filename);
+    png::image<png::rgb_pixel> pngimage("superpixels.png");
     for (png::uint_32 x = 0; x < width; ++x)
     {
         for (png::uint_32 y = 0; y < height; ++y)
@@ -168,7 +174,7 @@ void Image::writeSegments(std::vector<Graph::vertex_descriptor> T, std::vector<s
                 || (y > 0 && pixeltosegment[y][x] != pixeltosegment[y-1][x])
                 || (y+1 < height && pixeltosegment[y][x] != pixeltosegment[y+1][x]))
             {
-                pngimage[y][x] = 0; // colour pixel at segment boundary black
+                pngimage[y][x] = png::rgb_pixel(255, 0, 0); // colour pixel at segment boundary red
             }
         }
     }
