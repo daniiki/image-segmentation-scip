@@ -169,22 +169,22 @@ void Image::writeSegments(std::vector<Graph::vertex_descriptor> master_nodes, st
     {
         for (png::uint_32 y = 0; y < height; ++y)
         {
+            // if the pixel is at a boundary between segments
+            if ((x > 0 && pixeltosegment[y][x] != pixeltosegment[y][x-1])
+                || (x+1 < width && pixeltosegment[y][x] != pixeltosegment[y][x+1])
+                || (y > 0 && pixeltosegment[y][x] != pixeltosegment[y-1][x])
+                || (y+1 < height && pixeltosegment[y][x] != pixeltosegment[y+1][x]))
+            {
+                pngimage[y][x] = png::rgb_pixel(255, 0, 0); // colour pixel at segment boundary red
+            }
             // if the pixel is at the boundary of a master node
-            if (std::find(master_nodes.begin(), master_nodes.end(), segmentation[x + y*width]) != master_nodes.end()
+            else if (std::find(master_nodes.begin(), master_nodes.end(), segmentation[x + y*width]) != master_nodes.end()
                 && ((x+1 < width && segmentation[x + y*width] != segmentation[x+1 + y*width])
                 || (y+1 < height && segmentation[x + y*width] != segmentation[x + (y+1)*width])
                 || (x > 0 && segmentation[x + y*width] != segmentation[x-1 + y*width])
                 || (y > 0 && segmentation[x + y*width] != segmentation[x + (y-1)*width])))
             {
                 pngimage[y][x] = png::rgb_pixel(0, 0, 255); // colour pixel blue
-            }
-            // if the pixel is at a boundary between segments
-            else if ((x > 0 && pixeltosegment[y][x] != pixeltosegment[y][x-1])
-                || (x+1 < width && pixeltosegment[y][x] != pixeltosegment[y][x+1])
-                || (y > 0 && pixeltosegment[y][x] != pixeltosegment[y-1][x])
-                || (y+1 < height && pixeltosegment[y][x] != pixeltosegment[y+1][x]))
-            {
-                pngimage[y][x] = png::rgb_pixel(255, 0, 0); // colour pixel at segment boundary red
             }
         }
     }
