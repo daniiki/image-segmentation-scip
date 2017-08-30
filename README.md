@@ -15,7 +15,7 @@ Clone this repository using
 git clone https://github.com/daniiki/image-segmentation-scip.git
 ```
 Then you need to dowlnload the scipoptsuite from http://scip.zib.de/#download and untar the archive.
-Make sure to place the `scipoptsuite-4.x.x` sirectory inside of the root folder of this project.
+Make sure to place the `scipoptsuite-4.x.x` directory inside the root folder of this project.
 Finally, you can compile SCIP:
 ```
 cd scipoptsuite-4.0.0
