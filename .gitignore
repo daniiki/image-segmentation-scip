@@ -8,7 +8,7 @@ superpixels.png
 superpixels_avgcolor.png
 segments.png
 a.out
-scipoptsuite-*/
+scipoptsuite-*
 doc/
 obj/
 bin/
